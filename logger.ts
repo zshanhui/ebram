@@ -56,3 +56,10 @@ export const logger = {
   warn: (msg: string, meta?: Record<string, unknown>) => write('warn', msg, meta),
   error: (msg: string, meta?: Record<string, unknown>) => write('error', msg, meta),
 }
+
+export function investigationLogMeta(
+  investigationRequestId: string,
+  meta?: Record<string, unknown>,
+): Record<string, unknown> {
+  return { investigationRequestId, ...meta }
+}

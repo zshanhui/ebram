@@ -29,6 +29,8 @@ export const config = {
   githubToken: optional(process.env.GITHUB_TOKEN),
   resendApiKey: optional(process.env.RESEND_API_KEY),
   mailFrom: optional(process.env.MAIL_FROM),
+  rateLimitMax: Number(process.env.RATE_LIMIT_MAX ?? 2),
+  rateLimitWindow: process.env.RATE_LIMIT_WINDOW ?? '1 minute',
   logLevel: (process.env.LOG_LEVEL?.toLowerCase() ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
   nodeEnv: process.env.NODE_ENV ?? 'development',
 } as const

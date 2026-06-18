@@ -1,6 +1,8 @@
+import { randomBytes, randomUUID } from 'node:crypto'
 import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest'
 import { config } from './config.js'
-import { logger } from './logger.js'
+import { investigationLogMeta, logger } from './logger.js'
+import { type InvestigationVerdict } from './verdicts.js'
 
 type GithubIssue = RestEndpointMethodTypes['issues']['create']['response']['data']
 
@@ -23,13 +25,45 @@ type OpenGithubIssueFailure = {
 export type OpenGithubIssueResult = OpenGithubIssueSuccess | OpenGithubIssueFailure
 
 export type InvestigationReport = {
-  verdict: string
+  verdict: InvestigationVerdict
   title: string
   summary: string
   affectedPaths: string[]
   proposedFix: string
   effort: 'EASY' | 'MEDIUM' | 'HARD'
   risks: string
+}
+
+/** Extract the inner JSON string from a markdown ```json ... ``` fence, if present. */
+export function extractJsonFenceBlock(text: string): string | undefined {
+  const jsonFenceRe = /```json[ \t]*\r?\n([\s\S]*?)```/gi
+
+  for (const match of text.matchAll(jsonFenceRe)) {
+    const candidate = match[1]?.trim()
+    if (candidate && (candidate.startsWith('{') || candidate.startsWith('['))) {
+      return candidate
+    }
+  }
+
+  return undefined
+}
+
+/** Prefer ```json fenced content; fall back to trimmed raw text for JSON.parse. */
+export function resolveJsonPayload(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+
+  return extractJsonFenceBlock(trimmed) ?? trimmed
+}
+
+export function generateSecurityNonce(): string {
+  return randomBytes(16).toString('hex')
+}
+
+export function generateInvestigationRequestId(): string {
+  return randomUUID()
 }
 
 
@@ -93,17 +127,23 @@ _Automated triage by bugfixagent · verdict: ${investigation.verdict}_`
 }
 
 
-export async function openGithubIssue(inv: InvestigationReport): Promise<OpenGithubIssueResult> {
+export async function openGithubIssue(
+  inv: InvestigationReport,
+  investigationRequestId: string,
+): Promise<OpenGithubIssueResult> {
   const token = config.githubToken
   const githubRepo = parseGithubRepo()
 
   if (!token) {
-    logger.error('openGithubIssue skipped: missing GITHUB_TOKEN')
+    logger.error('openGithubIssue skipped: missing GITHUB_TOKEN', investigationLogMeta(investigationRequestId))
     return githubIssueFailure('missing_github_token')
   }
 
   if (!githubRepo) {
-    logger.error('openGithubIssue skipped: missing or invalid GITHUB_REPO')
+    logger.error(
+      'openGithubIssue skipped: missing or invalid GITHUB_REPO',
+      investigationLogMeta(investigationRequestId),
+    )
     return githubIssueFailure('missing_github_repo')
   }
 
@@ -119,14 +159,20 @@ export async function openGithubIssue(inv: InvestigationReport): Promise<OpenGit
       labels: ['agent-triage', `effort:${inv.effort.toLowerCase()}`],
     })
 
-    logger.info('GitHub issue created', {
-      issueNumber: data.number,
-      issueUrl: data.html_url,
-    })
+    logger.info(
+      'GitHub issue created',
+      investigationLogMeta(investigationRequestId, {
+        issueNumber: data.number,
+        issueUrl: data.html_url,
+      }),
+    )
 
     return githubIssueSuccess(data)
   } catch (err) {
-    logger.error('openGithubIssue failed', { owner, repo, error: err })
+    logger.error(
+      'openGithubIssue failed',
+      investigationLogMeta(investigationRequestId, { owner, repo, error: err }),
+    )
     return githubIssueFailure('github_api_error', err)
   }
 }
@@ -164,14 +210,19 @@ ${parsed.risks || '(none)'}`
 type DevNotificationEmailInput = {
   subject: string
   text: string
+  investigationRequestId: string
 }
 
 
 export async function sendDevNotificationEmail(input: DevNotificationEmailInput): Promise<void> {
   const { resendApiKey: apiKey, devNotificationEmail: to, mailFrom: from } = config
+  const { investigationRequestId } = input
 
   if (!apiKey || !to || !from) {
-    logger.error('sendDevNotificationEmail skipped: missing RESEND_API_KEY, DEV_NOTIFICATION_EMAIL, or MAIL_FROM')
+    logger.error(
+      'sendDevNotificationEmail skipped: missing RESEND_API_KEY, DEV_NOTIFICATION_EMAIL, or MAIL_FROM',
+      investigationLogMeta(investigationRequestId),
+    )
     return
   }
 
@@ -191,9 +242,15 @@ export async function sendDevNotificationEmail(input: DevNotificationEmailInput)
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    logger.error('Resend error', { status: res.status, errText })
+    logger.error(
+      'Resend error',
+      investigationLogMeta(investigationRequestId, { status: res.status, errText }),
+    )
     return
   }
 
-  logger.info('dev notification email sent', { to, subject: input.subject })
+  logger.info(
+    'dev notification email sent',
+    investigationLogMeta(investigationRequestId, { to, subject: input.subject }),
+  )
 }

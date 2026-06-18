@@ -1,10 +1,12 @@
 import { timingSafeEqual } from 'node:crypto'
+import rateLimit from '@fastify/rate-limit'
 import fastifySwagger from '@fastify/swagger'
 import scalarApiReference from '@scalar/fastify-api-reference'
 import Fastify from 'fastify'
 import { config } from './config.js'
-import { logger } from './logger.js'
+import { investigationLogMeta, logger } from './logger.js'
 import { BugFixAgentService } from './service.js'
+import { generateInvestigationRequestId } from './utils.js'
 
 const { port, host, apiAccessKey } = config
 
@@ -43,6 +45,14 @@ const service = new BugFixAgentService()
 
 const fastify = Fastify({
   logger: false,
+})
+
+await fastify.register(rateLimit, {
+  global: true,
+  max: config.rateLimitMax,
+  timeWindow: config.rateLimitWindow,
+  allowList: (request) => isPublicRoute(request.url),
+  keyGenerator: (request) => request.ip,
 })
 
 await fastify.register(fastifySwagger, {
@@ -87,6 +97,18 @@ fastify.addHook('onRequest', async (request, reply) => {
   if (!provided || !secureCompare(provided, apiAccessKey)) {
     return reply.code(401).send({ error: 'unauthorized' })
   }
+})
+
+fastify.addHook('onResponse', async (request, reply) => {
+  logger.info('request completed', {
+    ...(request.investigationRequestId
+      ? { investigationRequestId: request.investigationRequestId }
+      : {}),
+    method: request.method,
+    url: request.url,
+    statusCode: reply.statusCode,
+    durationMs: Math.round(reply.elapsedTime),
+  })
 })
 
 fastify.get('/health', {
@@ -135,8 +157,13 @@ fastify.post('/investigations', {
         type: 'object',
         properties: {
           accepted: { type: 'boolean' },
+          investigationRequestId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Correlation id for logs and async investigation tracking.',
+          },
         },
-        required: ['accepted'],
+        required: ['accepted', 'investigationRequestId'],
       },
       401: unauthorizedResponseSchema,
     },
@@ -144,11 +171,19 @@ fastify.post('/investigations', {
 }, async (request, reply) => {
   const { message } = request.body as { message: string }
 
-  void service.firstStepInvestigateIssue(message).catch((error) => {
-    logger.error('investigation failed', { error })
+  request.investigationRequestId = generateInvestigationRequestId()
+  const { investigationRequestId } = request
+
+  logger.info(
+    'investigation accepted',
+    investigationLogMeta(investigationRequestId, { messageLength: message.length }),
+  )
+
+  void service.firstStepInvestigateIssue(investigationRequestId, message).catch((error) => {
+    logger.error('investigation failed', investigationLogMeta(investigationRequestId, { error }))
   })
 
-  return reply.code(202).send({ accepted: true })
+  return reply.code(202).send({ accepted: true, investigationRequestId })
 })
 
 const shutdown = async (signal: string) => {
