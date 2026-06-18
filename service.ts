@@ -236,6 +236,9 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
     RULES:
       - Put the final JSON object in a \`\`\`json code block (preferred). Bare JSON is also accepted.
       - Brief prose before the block is fine; the JSON itself must be valid and parseable by JSON.parse
+      - The text strings in "summary" and "proposedFix" should be valid markdown format.
+        Valid number list (1.\n2.) for "proposedFix"
+        If "summary" is more than 3 sentences, each paragraph should be 2 or 3 sentences to be readable. No huge block of text.
       - For any non-${InvestigationVerdict.VALID} verdict, you only need "verdict", "title", and "summary".
         You may omit "affectedPaths", "proposedFix", "effort", and "risks" entirely.
         Populate those four only when verdict is "${InvestigationVerdict.VALID}"

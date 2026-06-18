@@ -102,7 +102,9 @@ function formatGithubIssueBody(investigation: InvestigationReport): string {
     ? investigation.affectedPaths.map((p) => `- \`${p}\``).join('\n')
     : '- _(none listed)_'
 
-  return `## Summary
+  return `Investigated by: 🤖email-bugfix-agent
+
+## Summary
 
 ${investigation.summary}
 

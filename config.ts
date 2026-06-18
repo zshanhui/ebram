@@ -6,29 +6,53 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 loadEnv({ path: join(__dirname, '.env') })
 
-function optional(value: string | undefined): string | undefined {
-  const trimmed = value?.trim()
-  return trimmed || undefined
+const REQUIRED_ENV_VARS = [
+  'API_ACCESS_KEY',
+  'CURSOR_API_KEY',
+  'GITHUB_REPO',
+  'GITHUB_TOKEN',
+  'DEV_NOTIFICATION_EMAIL',
+  'RESEND_API_KEY',
+  'MAIL_FROM',
+] as const
+
+type RequiredEnvVar = typeof REQUIRED_ENV_VARS[number]
+
+function loadRequiredEnvVars(): Record<RequiredEnvVar, string> {
+  const missing: string[] = []
+  const result = {} as Record<RequiredEnvVar, string>
+
+  for (const name of REQUIRED_ENV_VARS) {
+    const trimmed = process.env[name]?.trim()
+    if (!trimmed) {
+      missing.push(name)
+    } else {
+      result[name] = trimmed
+    }
+  }
+
+  if (missing.length > 0) {
+    console.error(
+      `Missing required environment variables:\n${missing.map((name) => `  - ${name}`).join('\n')}`,
+    )
+    process.exit(1)
+  }
+
+  return result
 }
 
-function required(name: string, value: string | undefined): string {
-  const trimmed = value?.trim()
-  if (!trimmed) {
-    throw new Error(`missing required env var: ${name}`)
-  }
-  return trimmed
-}
+const env = loadRequiredEnvVars()
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
-  apiAccessKey: required('API_ACCESS_KEY', process.env.API_ACCESS_KEY),
-  cursorApiKey: required('CURSOR_API_KEY', process.env.CURSOR_API_KEY),
-  devNotificationEmail: required('DEV_NOTIFICATION_EMAIL', process.env.DEV_NOTIFICATION_EMAIL),
-  githubRepo: required('GITHUB_REPO', process.env.GITHUB_REPO),
-  githubToken: optional(process.env.GITHUB_TOKEN),
-  resendApiKey: optional(process.env.RESEND_API_KEY),
-  mailFrom: optional(process.env.MAIL_FROM),
+  apiAccessKey: env.API_ACCESS_KEY,
+  cursorApiKey: env.CURSOR_API_KEY,
+  devNotificationEmail: env.DEV_NOTIFICATION_EMAIL,
+  githubRepo: env.GITHUB_REPO,
+  githubToken: env.GITHUB_TOKEN,
+  resendApiKey: env.RESEND_API_KEY,
+  mailFrom: env.MAIL_FROM,
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX ?? 2),
   rateLimitWindow: process.env.RATE_LIMIT_WINDOW ?? '1 minute',
   logLevel: (process.env.LOG_LEVEL?.toLowerCase() ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
