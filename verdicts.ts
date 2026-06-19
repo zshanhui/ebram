@@ -14,13 +14,6 @@ export const investigationVerdictValues = Object.values(InvestigationVerdict) as
   ...InvestigationVerdict[],
 ]
 
-export const silentNegativeVerdicts: ReadonlySet<InvestigationVerdict> = new Set([
-  InvestigationVerdict.SPAM,
-  InvestigationVerdict.DANGEROUS,
-  InvestigationVerdict.NOT_VALID,
-  InvestigationVerdict.OUT_SCOPE,
-])
-
 export function formatInvestigationVerdictPromptList(): string {
   return investigationVerdictValues.join(' | ')
 }

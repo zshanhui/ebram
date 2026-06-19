@@ -180,15 +180,30 @@ export async function openGithubIssue(
 }
 
 
-export function formatInvestigationEmailBody(parsed: InvestigationReport): string {
+export type InvestigationEmailBodyOptions = {
+  githubIssueUrl?: string
+  originalUserReport?: string
+}
+
+export function formatInvestigationEmailBody(
+  parsed: InvestigationReport,
+  options?: InvestigationEmailBodyOptions,
+): string {
   const paths = parsed.affectedPaths.length
     ? parsed.affectedPaths.map((p) => `  - ${p}`).join('\n')
     : '  (none listed)'
+
+  const githubIssueLine = options?.githubIssueUrl ? `GitHub issue: ${options.githubIssueUrl}\n` : ''
+  const originalUserReport = options?.originalUserReport?.trim() || '(none)'
 
   return `Bug investigation report
 
 Verdict: ${parsed.verdict}
 Title: ${parsed.title}
+${githubIssueLine}
+Original user report
+--------------------
+${originalUserReport}
 
 Summary
 -------

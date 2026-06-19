@@ -6,7 +6,6 @@ import {
   InvestigationVerdict,
   formatInvestigationVerdictPromptList,
   investigationVerdictValues,
-  silentNegativeVerdicts,
 } from './verdicts.js'
 import {
   formatInvestigationEmailBody,
@@ -40,8 +39,6 @@ type ParsedInvestigationResponse =
 */
 
 export class BugFixAgentService {
-  private static readonly silentNegativeVerdicts = silentNegativeVerdicts
-
   async firstStepInvestigateIssue(
     investigationRequestId: string,
     bugReportBodyText: string,
@@ -67,19 +64,25 @@ export class BugFixAgentService {
     )
 
     const investigation = parsed.ok ? parsed.data : undefined
-    if (investigation && BugFixAgentService.silentNegativeVerdicts.has(investigation.verdict)) {
-      this.handleNegativeVerdict(investigationRequestId, investigation)
+    if (investigation?.verdict === InvestigationVerdict.SPAM) {
+      this.handleSpamVerdict(investigationRequestId, investigation)
       return
     }
 
-    if (investigation?.verdict === InvestigationVerdict.NEEDS_HUMAN) {
-      await this.handleUnsureVerdictNeedsHuman(investigationRequestId, investigation)
+    if (
+      investigation &&
+      (investigation.verdict === InvestigationVerdict.NOT_VALID ||
+        investigation.verdict === InvestigationVerdict.OUT_SCOPE ||
+        investigation.verdict === InvestigationVerdict.DANGEROUS ||
+        investigation.verdict === InvestigationVerdict.NEEDS_HUMAN)
+    ) {
+      await this.notifyDevOfVerdict(investigationRequestId, investigation, bugReportBodyText)
       return
     }
 
     // if the investigation confirms that the issue exist we actually want to create a Github issue and have the agent send use an email explaining the results of the investigation before proceeding with a potential fix
     if (investigation?.verdict === InvestigationVerdict.VALID) {
-      await this.handleValidVerdict(investigationRequestId, investigation)
+      await this.handleValidVerdict(investigationRequestId, investigation, bugReportBodyText)
       return
     }
 
@@ -267,6 +270,7 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
   private async handleValidVerdict(
     investigationRequestId: string,
     inv: InvestigationResponse,
+    originalUserReport: string,
   ): Promise<void> {
     logger.info(
       'issue is VALID, proceeding to create GitHub issue',
@@ -289,16 +293,35 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
     await sendDevNotificationEmail({
       investigationRequestId,
       subject: `[bugfixagent] issue opened: ${inv.title}`,
-      text: `${formatInvestigationEmailBody(inv)}\n\nGitHub issue: ${issue.html_url}`,
+      text: formatInvestigationEmailBody(inv, {
+        githubIssueUrl: issue.html_url,
+        originalUserReport,
+      }),
     })
   }
 
-  private async handleUnsureVerdictNeedsHuman(
+  private async notifyDevOfVerdict(
     investigationRequestId: string,
     inv: InvestigationResponse,
+    originalUserReport: string,
   ): Promise<void> {
+    const subjectPrefix = (() => {
+      switch (inv.verdict) {
+        case InvestigationVerdict.NOT_VALID:
+          return 'not valid'
+        case InvestigationVerdict.OUT_SCOPE:
+          return 'out of scope'
+        case InvestigationVerdict.DANGEROUS:
+          return 'dangerous report'
+        case InvestigationVerdict.NEEDS_HUMAN:
+          return 'needs human review'
+        default:
+          return inv.verdict
+      }
+    })()
+
     logger.info(
-      'report needs human review',
+      'investigation verdict notification',
       investigationLogMeta(investigationRequestId, {
         verdict: inv.verdict,
         title: inv.title,
@@ -312,55 +335,20 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
 
     await sendDevNotificationEmail({
       investigationRequestId,
-      subject: `[bugfixagent] needs human review: ${inv.title}`,
-      text: formatInvestigationEmailBody(inv),
+      subject: `[bugfixagent] ${subjectPrefix}: ${inv.title}`,
+      text: formatInvestigationEmailBody(inv, { originalUserReport }),
     })
   }
 
-  private handleNegativeVerdict(investigationRequestId: string, parsed: InvestigationResponse): void {
-    const logMeta = (meta?: Record<string, unknown>) =>
-      investigationLogMeta(investigationRequestId, meta)
-
-    // No GitHub issue or dev email for these verdicts — log and stop.
-    switch (parsed.verdict) {
-      case InvestigationVerdict.SPAM:
-        logger.warn(
-          'report rejected',
-          logMeta({ verdict: InvestigationVerdict.SPAM, title: parsed.title, summary: parsed.summary }),
-        )
-        break
-      case InvestigationVerdict.DANGEROUS:
-        logger.warn(
-          'report rejected',
-          logMeta({
-            verdict: InvestigationVerdict.DANGEROUS,
-            title: parsed.title,
-            summary: parsed.summary,
-            risks: parsed.risks,
-          }),
-        )
-        break
-      case InvestigationVerdict.NOT_VALID:
-        logger.warn(
-          'report rejected',
-          logMeta({
-            verdict: InvestigationVerdict.NOT_VALID,
-            title: parsed.title,
-            summary: parsed.summary,
-          }),
-        )
-        break
-      case InvestigationVerdict.OUT_SCOPE:
-        logger.warn(
-          'report rejected',
-          logMeta({
-            verdict: InvestigationVerdict.OUT_SCOPE,
-            title: parsed.title,
-            summary: parsed.summary,
-          }),
-        )
-        break
-    }
+  private handleSpamVerdict(investigationRequestId: string, inv: InvestigationResponse): void {
+    logger.warn(
+      'report rejected',
+      investigationLogMeta(investigationRequestId, {
+        verdict: InvestigationVerdict.SPAM,
+        title: inv.title,
+        summary: inv.summary,
+      }),
+    )
   }
 
   private parseInvestigationAgentResponse(raw: string | undefined): ParsedInvestigationResponse {
