@@ -119,9 +119,6 @@ const EVENT_BY_MESSAGE: Record<string, string> = {
   'openGithubIssue failed': 'github.issue_failed',
   'dev notification email sent': 'email.sent',
   'Resend error': 'email.failed',
-  'request completed': 'http.request_completed',
-  'server listening': 'system.started',
-  'shutting down': 'system.shutdown',
 }
 
 /** Keys stripped from log_events.contents (raw agent output only). */

@@ -5,3 +5,5 @@ package-lock.json
 .pnpm-store
 data/
 .devnotes.md
+admin/__pycache__/*
+*.pyc
