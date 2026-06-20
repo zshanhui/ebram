@@ -1,5 +1,5 @@
 import { Agent } from '@cursor/sdk'
-import { config } from './config.js'
+import { config } from '../src/config.js'
 
 async function findAgentIdForRun(runId: string): Promise<string | undefined> {
   const agents = await Agent.list({ runtime: 'cloud', limit: 50, apiKey: config.cursorApiKey })
@@ -49,14 +49,14 @@ function printAssistantSteps(turns: Awaited<ReturnType<import('@cursor/sdk').Run
 
 const runId = process.argv[2]
 if (!runId) {
-  console.error('usage: pnpm inspect-run <run-id>')
+  console.error('usage: admin/inspect-run.sh <run-id> [agent-id]')
   process.exit(1)
 }
 
 const agentId = process.argv[3] ?? await findAgentIdForRun(runId)
 if (!agentId) {
   console.error(`no cloud agent found for run ${runId}`)
-  console.error('tip: pass agent id as second arg if you have it: pnpm inspect-run <run-id> <bc-...>')
+  console.error('tip: pass agent id as second arg: admin/inspect-run.sh <run-id> <bc-...>')
   process.exit(1)
 }
 

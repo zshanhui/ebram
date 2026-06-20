@@ -3,8 +3,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = join(__dirname, '..')
 
-loadEnv({ path: join(__dirname, '.env') })
+loadEnv({ path: join(repoRoot, '.env') })
 
 const REQUIRED_ENV_VARS = [
   'API_ACCESS_KEY',
@@ -57,6 +58,8 @@ export const config = {
   rateLimitWindow: process.env.RATE_LIMIT_WINDOW ?? '1 minute',
   logLevel: (process.env.LOG_LEVEL?.toLowerCase() ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  recordStoreEnabled: process.env.RECORD_STORE_ENABLED !== 'false',
+  recordStoreSqlitePath: process.env.RECORD_STORE_SQLITE_PATH?.trim() || join(repoRoot, 'data', 'bugfixagent.db'),
 } as const
 
 export type Config = typeof config

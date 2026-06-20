@@ -15,6 +15,7 @@ import {
   resolveJsonPayload,
   sendDevNotificationEmail,
 } from './utils.js'
+import { getRecordStore } from './store.js'
 
 const InvestigationResponseSchema = z.object({
   verdict: z.enum(investigationVerdictValues),
@@ -39,6 +40,22 @@ type ParsedInvestigationResponse =
 */
 
 export class BugFixAgentService {
+  startInvestigation(investigationRequestId: string, bugReportBodyText: string): void {
+    getRecordStore()?.acceptInvestigation({
+      id: investigationRequestId,
+      messageLength: bugReportBodyText.length,
+    })
+
+    logger.info(
+      'investigation accepted',
+      investigationLogMeta(investigationRequestId, { messageLength: bugReportBodyText.length }),
+    )
+
+    void this.firstStepInvestigateIssue(investigationRequestId, bugReportBodyText).catch((error) => {
+      logger.error('investigation failed', investigationLogMeta(investigationRequestId, { error }))
+    })
+  }
+
   async firstStepInvestigateIssue(
     investigationRequestId: string,
     bugReportBodyText: string,
@@ -274,7 +291,11 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
   ): Promise<void> {
     logger.info(
       'issue is VALID, proceeding to create GitHub issue',
-      investigationLogMeta(investigationRequestId, { title: inv.title }),
+      investigationLogMeta(investigationRequestId, {
+        verdict: inv.verdict,
+        title: inv.title,
+        effort: inv.effort,
+      }),
     )
 
     const result = await openGithubIssue(inv, investigationRequestId)

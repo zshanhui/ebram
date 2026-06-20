@@ -1,5 +1,5 @@
 import { Agent } from '@cursor/sdk'
-import { config } from './config.js'
+import { config } from '../src/config.js'
 
 async function main() {
   const agents = await Agent.list({ runtime: 'cloud', limit: 50, apiKey: config.cursorApiKey })
@@ -12,10 +12,10 @@ async function main() {
       allRuns.push({
         agentId: agent.agentId,
         id: item.id,
-        status: item._status,
-        result: item._result,
+        status: item.status,
+        result: item.result,
         createdAt: item.createdAt,
-        durationMs: item._durationMs,
+        durationMs: item.durationMs,
       })
     }
   }

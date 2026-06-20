@@ -4,8 +4,9 @@ import fastifySwagger from '@fastify/swagger'
 import scalarApiReference from '@scalar/fastify-api-reference'
 import Fastify from 'fastify'
 import { config } from './config.js'
-import { investigationLogMeta, logger } from './logger.js'
+import { logger } from './logger.js'
 import { BugFixAgentService } from './service.js'
+import { closeRecordStore } from './store.js'
 import { generateInvestigationRequestId } from './utils.js'
 
 const { port, host, apiAccessKey } = config
@@ -174,14 +175,7 @@ fastify.post('/investigations', {
   request.investigationRequestId = generateInvestigationRequestId()
   const { investigationRequestId } = request
 
-  logger.info(
-    'investigation accepted',
-    investigationLogMeta(investigationRequestId, { messageLength: message.length }),
-  )
-
-  void service.firstStepInvestigateIssue(investigationRequestId, message).catch((error) => {
-    logger.error('investigation failed', investigationLogMeta(investigationRequestId, { error }))
-  })
+  service.startInvestigation(investigationRequestId, message)
 
   return reply.code(202).send({ accepted: true, investigationRequestId })
 })
@@ -189,6 +183,7 @@ fastify.post('/investigations', {
 const shutdown = async (signal: string) => {
   logger.info('shutting down', { signal })
   await fastify.close()
+  closeRecordStore()
   process.exit(0)
 }
 

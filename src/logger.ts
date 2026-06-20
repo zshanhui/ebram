@@ -1,4 +1,5 @@
 import { config } from './config.js'
+import { getRecordStore } from './store.js'
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
@@ -48,6 +49,18 @@ function write(level: LogLevel, msg: string, meta?: Record<string, unknown>) {
   if (level === 'error') console.error(line)
   else if (level === 'warn') console.warn(line)
   else console.log(line)
+
+  const store = getRecordStore()
+  if (!store) return
+
+  try {
+    store.recordLog(level, msg, meta)
+  } catch (error) {
+    console.error(
+      `${new Date().toISOString()} ERROR record store write failed ${msg}`,
+      error instanceof Error ? error.message : error,
+    )
+  }
 }
 
 export const logger = {

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
 
 if [[ $# -lt 1 ]]; then
   echo "usage: $0 <run-id> [agent-id]" >&2
@@ -9,5 +10,5 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
-cd "$script_dir"
-pnpm exec tsx inspect-run.ts "$@"
+cd "$repo_root"
+pnpm exec tsx admin/inspect-run.ts "$@"

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-env_file="${script_dir}/.env"
+repo_root="$(cd "$script_dir/.." && pwd)"
+env_file="${repo_root}/.env"
 
 if [[ -f "$env_file" ]]; then
   set -a
