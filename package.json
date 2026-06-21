@@ -1,7 +1,8 @@
 {
-  "name": "bugfixagent",
+  "name": "email-bug-report-automation",
   "version": "1.0.0",
-  "description": "",
+  "description": "email based bug report/fix automation machine",
+  "author": "li, shanhui <shanhui@proton.me>",
   "main": "src/main.ts",
   "scripts": {
     "dev": "tsx watch src/main.ts",
@@ -22,7 +23,6 @@
     "zod": "3.25.50"
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "module",
   "packageManager": "pnpm@11.6.0",
