@@ -60,6 +60,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   recordStoreEnabled: process.env.RECORD_STORE_ENABLED !== 'false',
   recordStoreSqlitePath: process.env.RECORD_STORE_SQLITE_PATH?.trim() || join(repoRoot, 'data', 'bugfixagent.db'),
+  recordStoreDuckdbPath: process.env.RECORD_STORE_DUCKDB_PATH?.trim() || join(repoRoot, 'data', 'analytics.duckdb'),
 } as const
 
 export type Config = typeof config

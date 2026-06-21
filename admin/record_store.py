@@ -42,6 +42,24 @@ def resolve_db_path(path: str | Path | None = None) -> Path:
     return REPO_ROOT / 'data' / 'bugfixagent.db'
 
 
+def resolve_duckdb_path(path: str | Path | None = None) -> Path:
+    if path is not None:
+        candidate = Path(path).expanduser()
+        if candidate.is_absolute():
+            return candidate
+        return (REPO_ROOT / candidate).resolve()
+
+    load_dotenv()
+    custom = os.environ.get('RECORD_STORE_DUCKDB_PATH', '').strip()
+    if custom:
+        candidate = Path(custom).expanduser()
+        if candidate.is_absolute():
+            return candidate
+        return (REPO_ROOT / candidate).resolve()
+
+    return REPO_ROOT / 'data' / 'analytics.duckdb'
+
+
 def connect_readonly(db_path: Path) -> sqlite3.Connection:
     if not db_path.is_file():
         raise FileNotFoundError(f'record store not found: {db_path}')

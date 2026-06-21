@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "inspect-run": "tsx admin/inspect-run.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/utils.test.ts src/store.test.ts"
+    "test": "tsx --test src/utils.test.ts src/store.test.ts",
+    "syncduckdb": "python3 admin/sync_analytics.py"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.18",
