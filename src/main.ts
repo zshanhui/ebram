@@ -70,13 +70,13 @@ await fastify.register(fastifySwagger, {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          description: 'Set Authorization to `Bearer <API_ACCESS_KEY>`.',
+          description: 'Set Authorization to `Bearer <EBRAM_API_ACCESS_KEY>`.',
         },
         apiKeyAuth: {
           type: 'apiKey',
           in: 'header',
           name: 'X-API-Key',
-          description: 'Alternative to Bearer auth; pass `API_ACCESS_KEY` in the X-API-Key header.',
+          description: 'Alternative to Bearer auth; pass `EBRAM_API_ACCESS_KEY` in the X-API-Key header.',
         },
       },
     },

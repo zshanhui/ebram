@@ -1,0 +1,21 @@
+name = "bugfixagent-email-worker"
+main = "src/index.ts"
+compatibility_date = "2025-06-21"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Routes ───────────────────────────────────────────────────────
+# After deploying, bind this worker to a catch-all address in the
+# Cloudflare Dashboard: Email → Email Routing → Routing Rules.
+
+# ── Environment variables ────────────────────────────────────────
+[vars]
+BUGFIXAGENT_URL = "http://localhost:3000"
+FALLBACK_EMAIL = ""
+
+# ── Secrets (set via `wrangler secret put`) ──────────────────────
+# wrangler secret put EBRAM_API_ACCESS_KEY
+
+# ── Observability ────────────────────────────────────────────────
+[observability]
+enabled = true
+head_sampling_rate = 1

@@ -1,0 +1,24 @@
+{
+  "name": "bugfixagent-email-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Email Worker that receives bug reports and forwards them to the bugfixagent orchestrator API.",
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/report-gate.test.ts"
+  },
+  "dependencies": {
+    "mimetext": "^3.0.3",
+    "postal-mime": "^2.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250621.0",
+    "@types/node": "^22.19.21",
+    "tsx": "^4.22.4",
+    "typescript": "^5.8.0",
+    "wrangler": "^4.14.0"
+  }
+}

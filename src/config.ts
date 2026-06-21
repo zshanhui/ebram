@@ -8,7 +8,7 @@ const repoRoot = join(__dirname, '..')
 loadEnv({ path: join(repoRoot, '.env') })
 
 const REQUIRED_ENV_VARS = [
-  'API_ACCESS_KEY',
+  'EBRAM_API_ACCESS_KEY',
   'CURSOR_API_KEY',
   'GITHUB_REPO',
   'GITHUB_TOKEN',
@@ -47,7 +47,7 @@ const env = loadRequiredEnvVars()
 export const config = {
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
-  apiAccessKey: env.API_ACCESS_KEY,
+  apiAccessKey: env.EBRAM_API_ACCESS_KEY,
   cursorApiKey: env.CURSOR_API_KEY,
   devNotificationEmail: env.DEV_NOTIFICATION_EMAIL,
   githubRepo: env.GITHUB_REPO,

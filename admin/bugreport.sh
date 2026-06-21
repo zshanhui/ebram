@@ -19,8 +19,8 @@ fi
 
 message="$*"
 
-if [[ -z "${API_ACCESS_KEY:-}" ]]; then
-  echo "error: API_ACCESS_KEY is not set (add it to .env or export it)" >&2
+if [[ -z "${EBRAM_API_ACCESS_KEY:-}" ]]; then
+  echo "error: EBRAM_API_ACCESS_KEY is not set (add it to .env or export it)" >&2
   exit 1
 fi
 
@@ -39,7 +39,7 @@ fi
 
 response="$(curl -sS -w "\n%{http_code}" \
   -X POST "${base_url}/investigations" \
-  -H "Authorization: Bearer ${API_ACCESS_KEY}" \
+  -H "Authorization: Bearer ${EBRAM_API_ACCESS_KEY}" \
   -H "Content-Type: application/json" \
   -d "$payload")"
 
