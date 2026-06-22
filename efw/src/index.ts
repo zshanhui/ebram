@@ -1,19 +1,26 @@
 import { EmailMessage } from "cloudflare:email";
 import { createMimeMessage } from "mimetext";
 import PostalMime from "postal-mime";
+import { contactFormAdminSubject, workerRouteConfigFromEnv } from "./env.js";
 import {
-  KEY_WORDS,
-  MIN_REPORT_WORDS,
-  SPAM_BLOCK_REPLY_BODY,
-  countWords,
-  investigationSkipReason,
-  shouldBlockAsSpam,
-} from "./report-gate.js";
+  contactFormInbound,
+  inboundEmail,
+  routeInboundMessage,
+  sendResendEmail,
+  type OrchestratorStatus,
+} from "./routing-helpers.js";
+import { SPAM_BLOCK_REPLY_BODY } from "./gate.js";
 
 interface Env {
   BUGFIXAGENT_URL: string;
   FALLBACK_EMAIL: string;
   EBRAM_API_ACCESS_KEY: string;
+  RESEND_API_KEY: string;
+  CONTACT_ERROR_REDIRECT: string;
+  CONTACT_SUCCESS_REDIRECT: string;
+  CONTACT_TO_EMAIL: string;
+  CONTACT_FORM_ADMIN_SUBJECT?: string;
+  MAIL_FROM: string;
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MiB
@@ -52,11 +59,105 @@ async function sendAutoReply(
   }
 }
 
+const MAX_MESSAGE = 12_000;
+
+function badRequest(msg: string) {
+  return new Response(msg, { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+}
+
+async function handleFallbackForward(
+  message: ForwardableEmailMessage,
+  fallbackEmail: string,
+  input: {
+    investigationRequestId?: string;
+    orchestratorStatus: OrchestratorStatus;
+    sender: string;
+    recipient: string;
+  },
+): Promise<void> {
+  if (!fallbackEmail) return;
+
+  const fwdHeaders = new Headers();
+  fwdHeaders.set(
+    "X-Bugfixagent-InvestigationId",
+    input.investigationRequestId ?? "orchestrator-failed",
+  );
+  fwdHeaders.set("X-Bugfixagent-Status", input.orchestratorStatus);
+  fwdHeaders.set("X-Bugfixagent-Sender", input.sender);
+  fwdHeaders.set("X-Original-Recipient", input.recipient);
+
+  try {
+    await message.forward(fallbackEmail, fwdHeaders);
+    console.log("forwarded to fallback", {
+      to: fallbackEmail,
+      investigationRequestId: input.investigationRequestId,
+    });
+  } catch (err) {
+    console.error("fallback forward failed", err);
+  }
+}
+
 export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method !== "POST") {
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    const ct = request.headers.get('content-type') || '';
+    if (!ct.includes('application/x-www-form-urlencoded')) {
+      return badRequest('Expected application/x-www-form-urlencoded');
+    }
+
+    const body = await request.text();
+    const params = new URLSearchParams(body);
+    const honeypot = (params.get('website') || '').trim();
+    if (honeypot.length > 0) {
+      return Response.redirect(env.CONTACT_SUCCESS_REDIRECT, 302);
+    }
+
+    const email = (params.get('email') || '').trim();
+    const message = (params.get('message') || '').trim();
+
+    if (!email || !message) {
+      return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+    }
+
+    if (message.length > MAX_MESSAGE) {
+      return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+    }
+
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailOk) {
+      return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+    }
+
+    const routeConfig = workerRouteConfigFromEnv(env);
+    const result = await routeInboundMessage({
+      message: contactFormInbound(email, message, contactFormAdminSubject(env)),
+      routeConfig,
+      onSpamBlocked: async () => {
+        console.warn("contact form blocked as spam", { email });
+        const spamReplySent = await sendResendEmail(routeConfig.resend, {
+          to: email,
+          subject: "Your message was not delivered",
+          text: SPAM_BLOCK_REPLY_BODY,
+        });
+        if (!spamReplySent) {
+          console.error("spam block reply failed");
+        }
+      },
+    });
+
+    if (result.outcome === "general" && !result.adminEmailSent) {
+      return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+    }
+
+    return Response.redirect(env.CONTACT_SUCCESS_REDIRECT, 302);
+  },
   async email(message, env: Env, _ctx) {
     // ── Size guard ──────────────────────────────────────────────
     if (message.rawSize > MAX_SIZE_BYTES) {
-      message.setReject("Message too large (max 25 MiB)");
+      message.setReject("message too large (max 5 MiB)");
       return;
     }
 
@@ -81,81 +182,37 @@ export default {
       bodyText = "(could not parse email body)";
     }
 
-    // ── Build the bug report payload ────────────────────────────
-    const report = [
-      `From: ${sender}`,
-      `To: ${recipient}`,
-      `Subject: ${subject}`,
-      ``,
-      bodyText,
-    ].join("\n");
+    const routeConfig = workerRouteConfigFromEnv(env);
+    const result = await routeInboundMessage({
+      message: inboundEmail(sender, recipient, subject, bodyText),
+      routeConfig,
+      onSpamBlocked: async () => {
+        console.warn("email blocked as spam", { from: sender, to: recipient, subject });
+        await sendAutoReply(
+          message,
+          recipient,
+          sender,
+          subject,
+          SPAM_BLOCK_REPLY_BODY,
+          "spam block reply sent",
+        );
+      },
+    });
 
-    const searchableText = `${subject}\n${bodyText}`;
-
-    if (shouldBlockAsSpam(searchableText)) {
-      console.warn("email blocked as spam", { from: sender, to: recipient, subject });
-      await sendAutoReply(
-        message,
-        recipient,
+    if (result.outcome === "general" && !result.adminEmailSent) {
+      console.error("failed to send general admin email for inbound message", {
         sender,
         subject,
-        SPAM_BLOCK_REPLY_BODY,
-        "spam block reply sent",
-      );
-      return;
-    }
-
-    const skipReason = investigationSkipReason(searchableText);
-    const shouldInvestigate = skipReason === null;
-    const wordCount = countWords(searchableText);
-
-    // ── Forward to bugfixagent orchestrator ─────────────────────
-    let investigationRequestId: string | undefined;
-    let orchestratorOk = false;
-    let orchestratorStatus: "accepted" | "error" | "skipped" = shouldInvestigate
-      ? "error"
-      : "skipped";
-
-    if (shouldInvestigate) {
-      try {
-        const resp = await fetch(`${env.BUGFIXAGENT_URL}/investigations`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.EBRAM_API_ACCESS_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ message: report }),
-        });
-
-        if (resp.ok) {
-          const body = (await resp.json()) as {
-            accepted: boolean;
-            investigationRequestId: string;
-          };
-          investigationRequestId = body.investigationRequestId;
-          orchestratorOk = true;
-          orchestratorStatus = "accepted";
-          console.log("investigation accepted", { investigationRequestId });
-        } else {
-          console.error("orchestrator returned non-ok", {
-            status: resp.status,
-            text: await resp.text().catch(() => "(read failed)"),
-          });
-        }
-      } catch (err) {
-        console.error("failed to reach orchestrator", err);
-      }
-    } else {
-      console.log("orchestrator skipped", {
-        reason: skipReason,
-        requiredKeywords: KEY_WORDS,
-        minWords: MIN_REPORT_WORDS,
-        wordCount,
       });
     }
 
-    // ── Auto-reply to sender ────────────────────────────────────
-    if (orchestratorOk) {
+    if (result.outcome !== "investigation") {
+      return;
+    }
+
+    const { investigationRequestId, orchestratorStatus } = result.investigation;
+
+    if (orchestratorStatus === "accepted") {
       await sendAutoReply(
         message,
         recipient,
@@ -177,26 +234,11 @@ export default {
       );
     }
 
-    // ── Forward to fallback inbox ───────────────────────────────
-    if (env.FALLBACK_EMAIL) {
-      const fwdHeaders = new Headers();
-      fwdHeaders.set(
-        "X-Bugfixagent-InvestigationId",
-        investigationRequestId ?? "orchestrator-failed",
-      );
-      fwdHeaders.set("X-Bugfixagent-Status", orchestratorStatus);
-      fwdHeaders.set("X-Bugfixagent-Sender", sender);
-      fwdHeaders.set("X-Original-Recipient", recipient);
-
-      try {
-        await message.forward(env.FALLBACK_EMAIL, fwdHeaders);
-        console.log("forwarded to fallback", {
-          to: env.FALLBACK_EMAIL,
-          investigationRequestId,
-        });
-      } catch (err) {
-        console.error("fallback forward failed", err);
-      }
-    }
+    await handleFallbackForward(message, env.FALLBACK_EMAIL, {
+      investigationRequestId,
+      orchestratorStatus,
+      sender,
+      recipient,
+    });
   },
 } satisfies ExportedHandler<Env>;

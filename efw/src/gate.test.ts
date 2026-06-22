@@ -11,7 +11,7 @@ const {
   investigationSkipReason,
   shouldBlockAsSpam,
   shouldInvestigateReport,
-} = await import('./report-gate.js')
+} = await import('./gate.js')
 
 const VALID_REPORT =
   'bug report one two three four five six seven eight nine ten eleven twelve thirteen'
