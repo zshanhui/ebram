@@ -21,6 +21,7 @@ interface Env {
   CONTACT_TO_EMAIL: string;
   CONTACT_FORM_ADMIN_SUBJECT?: string;
   MAIL_FROM: string;
+  DEV_TEST_MODE?: string;
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MiB

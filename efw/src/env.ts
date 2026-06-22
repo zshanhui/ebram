@@ -14,7 +14,25 @@ export type WorkerRouteEnv = {
   MAIL_FROM: string;
   CONTACT_TO_EMAIL: string;
   CONTACT_FORM_ADMIN_SUBJECT?: string;
+  DEV_TEST_MODE?: string;
 };
+
+export function isDevTestMode(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  switch (normalized) {
+    case "1":
+    case "on":
+    case "true":
+      return true;
+    case "0":
+    case "off":
+    case "false":
+      return false;
+    default:
+      return false;
+  }
+}
 
 export type WorkerRouteConfig = RouteConfig;
 
@@ -26,7 +44,7 @@ export function contactFormAdminSubject(env: Pick<WorkerRouteEnv, "CONTACT_FORM_
 export function workerRouteConfigFromEnv(env: WorkerRouteEnv): WorkerRouteConfig {
   return {
     resend: resendConfigFromEnv(env),
-    orchestrator: orchestratorConfigFromEnv(env),
+    orchestrator: orchestratorConfigFromEnv(env, isDevTestMode(env.DEV_TEST_MODE)),
   };
 }
 

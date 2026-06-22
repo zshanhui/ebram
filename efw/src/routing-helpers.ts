@@ -89,6 +89,7 @@ export type TriggerInvestigationResult = {
 export type OrchestratorConfig = {
   bugfixagentUrl: string;
   apiAccessKey: string;
+  devTestMode: boolean;
 };
 
 type OrchestratorEnv = {
@@ -113,17 +114,34 @@ export type RouteInboundResult =
   | { outcome: "general"; adminEmailSent: boolean }
   | { outcome: "investigation"; investigation: TriggerInvestigationResult };
 
-export function orchestratorConfigFromEnv(env: OrchestratorEnv): OrchestratorConfig {
+export function orchestratorConfigFromEnv(
+  env: OrchestratorEnv,
+  devTestMode = false,
+): OrchestratorConfig {
   return {
     bugfixagentUrl: env.BUGFIXAGENT_URL,
     apiAccessKey: env.EBRAM_API_ACCESS_KEY,
+    devTestMode,
   };
 }
+
+const DEV_TEST_MOCK_INVESTIGATION_ID = "dev-test-mock-investigation";
 
 export async function triggerInvestigation(
   config: OrchestratorConfig,
   report: string,
 ): Promise<TriggerInvestigationResult> {
+  if (config.devTestMode) {
+    console.log("DEV_TEST_MODE: skipping investigation trigger", {
+      investigationRequestId: DEV_TEST_MOCK_INVESTIGATION_ID,
+      report,
+    });
+    return {
+      investigationRequestId: DEV_TEST_MOCK_INVESTIGATION_ID,
+      orchestratorStatus: "accepted",
+    };
+  }
+
   let investigationRequestId: string | undefined;
   let orchestratorStatus: OrchestratorStatus = "error";
 

@@ -16,6 +16,8 @@ CONTACT_ERROR_REDIRECT = "https://levelchinese.app/contact?error=1"
 CONTACT_TO_EMAIL = "shanhui.dev@proton.me"
 CONTACT_FORM_ADMIN_SUBJECT = "LevelChinese News contact form"
 MAIL_FROM = "contact@levelchinese.app"
+# Set to "1", "on", or "true" to log investigations locally without calling the orchestrator
+DEV_TEST_MODE = "1"
 
 # ── Secrets (set via `wrangler secret put`) ──────────────────────
 # wrangler secret put EBRAM_API_ACCESS_KEY
