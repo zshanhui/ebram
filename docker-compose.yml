@@ -1,0 +1,18 @@
+services:
+  bugfixagent:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      RECORD_STORE_SQLITE_PATH: /app/data/bugfixagent.db
+    volumes:
+      - bugfixagent-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  bugfixagent-data:

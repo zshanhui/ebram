@@ -24,3 +24,20 @@ components
 agent harness support
   - just cursorsdk for now
   - pi agent + open models are planned
+
+
+## Deploy to Railway
+
+Push the repo and create a new Railway service from it (Railway will pick up railway.toml + Dockerfile).
+
+Set these environment variables in Railway (from .env.example):
+
+EBRAM_API_ACCESS_KEY, CURSOR_API_KEY, GITHUB_REPO, GITHUB_TOKEN
+DEV_NOTIFICATION_EMAIL, RESEND_API_KEY, MAIL_FROM
+Railway sets PORT automatically — no need to configure it
+Optional but recommended: attach a Railway volume mounted at /app/data so SQLite investigation logs survive redeploys. The container already sets RECORD_STORE_SQLITE_PATH=/app/data/bugfixagent.db.
+
+Point your Cloudflare email worker at the Railway URL:
+
+
+BUGFIXAGENT_URL=https://your-app.up.railway.app

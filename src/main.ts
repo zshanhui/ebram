@@ -31,7 +31,7 @@ function extractAccessKey(request: { headers: Record<string, string | string[] |
 }
 
 function isPublicRoute(url: string): boolean {
-  return url === '/reference' || url.startsWith('/reference/')
+  return url === '/health' || url === '/reference' || url.startsWith('/reference/')
 }
 
 const unauthorizedResponseSchema = {
