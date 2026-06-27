@@ -13,23 +13,63 @@ if [[ -f "$env_file" ]]; then
 fi
 
 if [[ $# -lt 1 ]]; then
-  echo "usage: $0 \"bug report message here...\"" >&2
+  echo "usage: $0 [--url BASE_URL] \"bug report message here...\"" >&2
+  exit 1
+fi
+
+base_url="${BUGFIXAGENT_URL:-}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --url)
+      if [[ $# -lt 2 ]]; then
+        echo "error: --url requires a value" >&2
+        exit 1
+      fi
+      base_url="$2"
+      shift 2
+      ;;
+    --url=*)
+      base_url="${1#*=}"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "error: unknown option: $1" >&2
+      echo "usage: $0 [--url BASE_URL] \"bug report message here...\"" >&2
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: $0 [--url BASE_URL] \"bug report message here...\"" >&2
   exit 1
 fi
 
 message="$*"
 
+if [[ -z "$base_url" ]]; then
+  port="${PORT:-3000}"
+  host="${HOST:-localhost}"
+  if [[ "$host" == "0.0.0.0" ]]; then
+    host="localhost"
+  fi
+  base_url="http://${host}:${port}"
+fi
+
+base_url="${base_url%/}"
+
 if [[ -z "${EBRAM_API_ACCESS_KEY:-}" ]]; then
   echo "error: EBRAM_API_ACCESS_KEY is not set (add it to .env or export it)" >&2
   exit 1
 fi
-
-port="${PORT:-3000}"
-host="${HOST:-localhost}"
-if [[ "$host" == "0.0.0.0" ]]; then
-  host="localhost"
-fi
-base_url="${BUGFIXAGENT_URL:-http://${host}:${port}}"
 
 if command -v jq >/dev/null 2>&1; then
   payload="$(jq -n --arg message "$message" '{message: $message}')"
