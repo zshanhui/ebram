@@ -1,7 +1,9 @@
 export const KEY_WORDS = ['bug', 'report'] as const
 export const SPAM_WORDS = ['seo', 'analysis', 'google', 'bing', 'phone call', 'are incomplete', 'keywords',
   'attract more clients', 'online visibility', 'improve your website', 'steps are incomplete',
-  'Mark Colins', 'business and services'
+  'Mark Colins', 'business and services',
+  // gambling / promo-code spam (telegra.ph jackpot pitches)
+  'promo code', 'jackpot', 'telegra.ph'
 ] as const
 export const SPAM_BLOCK_MIN_MATCHES = 2
 export const MIN_REPORT_WORDS = 15

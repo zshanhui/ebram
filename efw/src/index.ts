@@ -61,6 +61,8 @@ async function sendAutoReply(
 }
 
 const MAX_MESSAGE = 12_000;
+// Minimum length for contact-form messages — rejects junk like "hi", "test", bare URLs
+const MIN_MESSAGE = 20;
 
 function badRequest(msg: string) {
   return new Response(msg, { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } });
@@ -100,6 +102,13 @@ async function handleFallbackForward(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // PROBE: temporary build marker to confirm a fresh deploy is live
+    console.log("efw fetch hit", {
+      buildTag: "probe-2026-09-05",
+      method: request.method,
+      path: new URL(request.url).pathname,
+    });
+
     if (request.method !== "POST") {
       return new Response("Method not allowed", { status: 405 });
     }
@@ -120,6 +129,11 @@ export default {
     const message = (params.get('message') || '').trim();
 
     if (!email || !message) {
+      return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+    }
+
+    if (message.length < MIN_MESSAGE) {
+      console.log("contact form message too short", { email, length: message.length });
       return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
     }
 

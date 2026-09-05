@@ -182,7 +182,18 @@ export async function openGithubIssue(
 
 export type InvestigationEmailBodyOptions = {
   githubIssueUrl?: string
+  githubIssueError?: string
   originalUserReport?: string
+}
+
+/** Short, human-readable summary of why the GitHub issue could not be opened. */
+export function describeGithubIssueError(result: OpenGithubIssueFailure): string {
+  const { reason, error } = result
+  let detail = ''
+  if (error instanceof Error) detail = error.message
+  else if (error) detail = String(error)
+  const short = detail.length > 200 ? `${detail.slice(0, 200)}…` : detail
+  return short ? `${reason}: ${short}` : reason
 }
 
 export function formatInvestigationEmailBody(
@@ -193,7 +204,11 @@ export function formatInvestigationEmailBody(
     ? parsed.affectedPaths.map((p) => `  - ${p}`).join('\n')
     : '  (none listed)'
 
-  const githubIssueLine = options?.githubIssueUrl ? `GitHub issue: ${options.githubIssueUrl}\n` : ''
+  const githubIssueLine = options?.githubIssueUrl
+    ? `GitHub issue: ${options.githubIssueUrl}\n`
+    : options?.githubIssueError
+      ? `GitHub issue: NOT OPENED — ${options.githubIssueError}\n`
+      : ''
   const originalUserReport = options?.originalUserReport?.trim() || '(none)'
 
   return `Bug investigation report

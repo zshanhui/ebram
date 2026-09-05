@@ -10,7 +10,7 @@ process.env.RESEND_API_KEY ??= 'test-resend-key'
 process.env.MAIL_FROM ??= 'test@example.com'
 
 const { InvestigationVerdict } = await import('./verdicts.js')
-const { extractJsonFenceBlock, generateInvestigationRequestId, generateSecurityNonce, resolveJsonPayload } = await import('./utils.js')
+const { extractJsonFenceBlock, formatInvestigationEmailBody, describeGithubIssueError, generateInvestigationRequestId, generateSecurityNonce, resolveJsonPayload } = await import('./utils.js')
 
 test('returns undefined for empty string', () => {
   assert.equal(extractJsonFenceBlock(''), undefined)
@@ -111,4 +111,62 @@ test('generateInvestigationRequestId returns a UUID', () => {
     id,
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   )
+})
+
+test('describeGithubIssueError formats reason + short message from an Error', () => {
+  const err = new Error('Bad credentials - https://docs.github.com/rest')
+  assert.equal(
+    describeGithubIssueError({ ok: false, reason: 'github_api_error', error: err }),
+    'github_api_error: Bad credentials - https://docs.github.com/rest',
+  )
+})
+
+test('describeGithubIssueError falls back to reason when error is missing', () => {
+  assert.equal(
+    describeGithubIssueError({ ok: false, reason: 'missing_github_token' }),
+    'missing_github_token',
+  )
+})
+
+test('describeGithubIssueError truncates very long messages', () => {
+  const err = new Error('x'.repeat(500))
+  const out = describeGithubIssueError({ ok: false, reason: 'github_api_error', error: err })
+  assert.ok(out.length < 220)
+  assert.ok(out.endsWith('…'))
+})
+
+test('formatInvestigationEmailBody shows NOT OPENED note when issue failed', () => {
+  const inv = {
+    verdict: InvestigationVerdict.VALID,
+    title: 'Bug title',
+    summary: 'summary',
+    affectedPaths: [],
+    proposedFix: '',
+    effort: 'EASY' as const,
+    risks: '',
+  }
+  const body = formatInvestigationEmailBody(inv, {
+    githubIssueError: 'github_api_error: Bad credentials',
+    originalUserReport: 'user text',
+  })
+  assert.match(body, /GitHub issue: NOT OPENED — github_api_error: Bad credentials/)
+  assert.doesNotMatch(body, /GitHub issue: https:/)
+})
+
+test('formatInvestigationEmailBody shows the issue URL when it opened', () => {
+  const inv = {
+    verdict: InvestigationVerdict.VALID,
+    title: 'Bug title',
+    summary: 'summary',
+    affectedPaths: [],
+    proposedFix: '',
+    effort: 'EASY' as const,
+    risks: '',
+  }
+  const body = formatInvestigationEmailBody(inv, {
+    githubIssueUrl: 'https://github.com/owner/repo/issues/21',
+    originalUserReport: 'user text',
+  })
+  assert.match(body, /GitHub issue: https:\/\/github.com\/owner\/repo\/issues\/21/)
+  assert.doesNotMatch(body, /NOT OPENED/)
 })

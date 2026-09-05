@@ -93,3 +93,18 @@ test('shouldBlockAsSpam matches multi-word spam phrases', () => {
   assert.equal(countSpamMatches(pitch, SPAM_WORDS), 4)
   assert.equal(shouldBlockAsSpam(pitch), true)
 })
+
+test('blocks gambling promo-code spam with telegra.ph links', () => {
+  const spam =
+    'A $25,000 PROMO CODE FOR THE WINNER IN YOU https://telegra.ph/Win-the-1000000-jackpot-today-Message-ID-304148-08-30'
+
+  assert.equal(countSpamMatches(spam, SPAM_WORDS) >= 2, true)
+  assert.equal(shouldBlockAsSpam(spam), true)
+})
+
+test('a single promo code mention does not block', () => {
+  assert.equal(
+    shouldBlockAsSpam('promo code redemption fails when the cart is empty'),
+    false,
+  )
+})

@@ -8,6 +8,7 @@ import {
   investigationVerdictValues,
 } from './verdicts.js'
 import {
+  describeGithubIssueError,
   formatInvestigationEmailBody,
   generateSecurityNonce,
   githubRepoUrl,
@@ -32,12 +33,6 @@ export type InvestigationResponse = z.infer<typeof InvestigationResponseSchema>
 type ParsedInvestigationResponse =
   | { ok: true; data: InvestigationResponse }
   | { ok: false; reason: string; error?: unknown }
-
-/*
-  open questions to explore
-    - do we want the investigation agent to open a github pr or have it write text and than open a pr using the github api or mcp? i think cursor agents at least on local have the ability open github issues and prs using bash
-      A: have the orchestrator create the Github issue for v1
-*/
 
 export class BugFixAgentService {
   startInvestigation(investigationRequestId: string, bugReportBodyText: string): void {
@@ -300,6 +295,8 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
 
     const result = await openGithubIssue(inv, investigationRequestId)
     if (!result.ok) {
+      // The GitHub issue could not be opened — do not abort the flow: log it,
+      // tell the dev about the valid verdict, and flag that no issue was opened.
       logger.error(
         'failed to create GitHub issue',
         investigationLogMeta(investigationRequestId, {
@@ -307,6 +304,23 @@ Put it in a \`\`\`json code block. No other text outside the JSON object.`
           error: result.error,
         }),
       )
+
+      const shortError = describeGithubIssueError(result)
+      try {
+        await sendDevNotificationEmail({
+          investigationRequestId,
+          subject: `[bugfixagent] issue open FAILED: ${inv.title}`,
+          text: formatInvestigationEmailBody(inv, {
+            githubIssueError: shortError,
+            originalUserReport,
+          }),
+        })
+      } catch (error) {
+        logger.error(
+          'failed to send dev notification for GitHub issue failure',
+          investigationLogMeta(investigationRequestId, { error, shortError }),
+        )
+      }
       return
     }
 

@@ -147,8 +147,8 @@ fastify.post('/investigations', {
       properties: {
         message: {
           type: 'string',
-          minLength: 1,
-          maxLength: 12_000,
+          minLength: 20,
+          maxLength: 5_000,
           description: 'Raw bug report text from the user.',
         },
       },
