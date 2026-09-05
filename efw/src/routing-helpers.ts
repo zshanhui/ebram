@@ -1,4 +1,9 @@
-import { shouldBlockAsSpam, shouldInvestigateReport } from "./gate.js";
+import {
+  DeepSpamFilter,
+  investigationSkipReason,
+  shouldBlockAsSpam,
+  shouldInvestigateReport,
+} from "./gate.js";
 
 type ResendEnv = {
   RESEND_API_KEY: string;
@@ -17,12 +22,14 @@ type SendResendEmailInput = {
   subject: string;
   text: string;
   replyTo?: string;
+  requestId?: string;
 };
 
 type SendGeneralAdminEmailInput = {
   subject: string;
   text: string;
   replyTo: string;
+  requestId?: string;
 };
 
 export function resendConfigFromEnv(env: ResendEnv): ResendMailConfig {
@@ -60,7 +67,7 @@ export async function sendResendEmail(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    console.error("Resend error", res.status, errText);
+    console.error("Resend error", { requestId: input.requestId, status: res.status, body: errText });
     return false;
   }
 
@@ -76,6 +83,7 @@ async function sendGeneralAdminEmail(
     subject: input.subject,
     text: input.text,
     replyTo: input.replyTo,
+    requestId: input.requestId,
   });
 }
 
@@ -100,6 +108,7 @@ type OrchestratorEnv = {
 export type RouteConfig = {
   resend: ResendMailConfig;
   orchestrator: OrchestratorConfig;
+  deepSpamFilter?: DeepSpamFilter; // undefined ⇒ filter disabled
 };
 
 export type InboundMessage = {
@@ -107,6 +116,7 @@ export type InboundMessage = {
   report: string;
   replyTo: string;
   adminSubject: string;
+  requestId: string;
 };
 
 export type RouteInboundResult =
@@ -127,12 +137,17 @@ export function orchestratorConfigFromEnv(
 
 const DEV_TEST_MOCK_INVESTIGATION_ID = "dev-test-mock-investigation";
 
+// Must stay ≤ the orchestrator's `message` schema maxLength (5000)
+const MAX_ORCHESTRATOR_MESSAGE_CHARS = 5_000;
+
 export async function triggerInvestigation(
   config: OrchestratorConfig,
   report: string,
+  requestId?: string,
 ): Promise<TriggerInvestigationResult> {
   if (config.devTestMode) {
     console.log("DEV_TEST_MODE: skipping investigation trigger", {
+      requestId,
       investigationRequestId: DEV_TEST_MOCK_INVESTIGATION_ID,
       report,
     });
@@ -145,6 +160,26 @@ export async function triggerInvestigation(
   let investigationRequestId: string | undefined;
   let orchestratorStatus: OrchestratorStatus = "error";
 
+  console.log("sending investigation to orchestrator", {
+    requestId,
+    url: `${config.bugfixagentUrl}/investigations`,
+    reportChars: report.length,
+  });
+
+  // Enforce the orchestrator's 5,000-char cap on every path (contact form + email)
+  const TRUNCATION_SUFFIX = "\n\n[report truncated to fit 5000-char limit]";
+  const orchestratorMessage =
+    report.length > MAX_ORCHESTRATOR_MESSAGE_CHARS
+      ? report.slice(0, MAX_ORCHESTRATOR_MESSAGE_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX
+      : report;
+  if (orchestratorMessage !== report) {
+    console.warn("investigation report truncated for orchestrator", {
+      requestId,
+      reportChars: report.length,
+      sentChars: orchestratorMessage.length,
+    });
+  }
+
   try {
     const resp = await fetch(`${config.bugfixagentUrl}/investigations`, {
       method: "POST",
@@ -152,7 +187,7 @@ export async function triggerInvestigation(
         Authorization: `Bearer ${config.apiAccessKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: report }),
+      body: JSON.stringify({ message: orchestratorMessage, requestId }),
     });
 
     if (resp.ok) {
@@ -162,15 +197,16 @@ export async function triggerInvestigation(
       };
       investigationRequestId = body.investigationRequestId;
       orchestratorStatus = "accepted";
-      console.log("investigation accepted", { investigationRequestId });
+      console.log("investigation accepted", { requestId, investigationRequestId });
     } else {
       console.error("orchestrator returned non-ok", {
+        requestId,
         status: resp.status,
         text: await resp.text().catch(() => "(read failed)"),
       });
     }
   } catch (err) {
-    console.error("failed to reach orchestrator", err);
+    console.error("failed to reach orchestrator", { requestId, err });
   }
 
   return {
@@ -183,12 +219,14 @@ export function contactFormInbound(
   email: string,
   message: string,
   adminSubject: string,
+  requestId: string,
 ): InboundMessage {
   return {
     preparedFullText: message,
     report: `From: ${email}\n\n${message}`,
     replyTo: email,
     adminSubject,
+    requestId,
   };
 }
 
@@ -197,6 +235,7 @@ export function inboundEmail(
   recipient: string,
   subject: string,
   bodyText: string,
+  requestId: string,
 ): InboundMessage {
   return {
     preparedFullText: `${subject}\n${bodyText}`,
@@ -209,6 +248,7 @@ export function inboundEmail(
     ].join("\n"),
     replyTo: sender,
     adminSubject: `Inbound: ${subject}`,
+    requestId,
   };
 }
 
@@ -219,16 +259,42 @@ export async function routeInboundMessage(input: {
 }): Promise<RouteInboundResult> {
   const { message, routeConfig, onSpamBlocked } = input;
 
-  if (shouldBlockAsSpam(message.preparedFullText)) {
+  const heuristicBlocked = shouldBlockAsSpam(message.preparedFullText);
+  console.log("heuristic spam gate", {
+    requestId: message.requestId,
+    result: heuristicBlocked ? "BLOCKED" : "passed",
+  });
+  if (heuristicBlocked) {
     await onSpamBlocked?.();
     return { outcome: "spam" };
   }
 
+  if (routeConfig.deepSpamFilter) {
+    const deepSpam = await routeConfig.deepSpamFilter.detectSpam(
+      message.preparedFullText,
+      message.requestId,
+    );
+    if (deepSpam) {
+      console.warn("deep spam llm filter blocked message", {
+        requestId: message.requestId,
+        replyTo: message.replyTo,
+      });
+      await onSpamBlocked?.();
+      return { outcome: "spam" };
+    }
+  }
+
+  const skipReason = investigationSkipReason(message.preparedFullText);
+  console.log("investigation eligibility gate", {
+    requestId: message.requestId,
+    result: skipReason ? `skipped (${skipReason})` : "eligible",
+  });
   if (!shouldInvestigateReport(message.preparedFullText)) {
     const adminEmailSent = await sendGeneralAdminEmail(routeConfig.resend, {
       subject: message.adminSubject,
       text: message.report,
       replyTo: message.replyTo,
+      requestId: message.requestId,
     });
     return { outcome: "general", adminEmailSent };
   }
@@ -236,6 +302,7 @@ export async function routeInboundMessage(input: {
   const investigation = await triggerInvestigation(
     routeConfig.orchestrator,
     message.report,
+    message.requestId,
   );
 
   return { outcome: "investigation", investigation };

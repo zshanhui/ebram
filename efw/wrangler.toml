@@ -29,6 +29,10 @@ DEV_TEST_MODE = "0"
 # wrangler secret put EBRAM_API_ACCESS_KEY
 # wrangler secret put RESEND_API_KEY
 
+# ── AI (Workers AI — deep spam filter) ──────────────────────
+[ai]
+binding = "AI"
+
 # ── Observability ────────────────────────────────────────────────
 [observability]
 enabled = true

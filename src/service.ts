@@ -35,7 +35,11 @@ type ParsedInvestigationResponse =
   | { ok: false; reason: string; error?: unknown }
 
 export class BugFixAgentService {
-  startInvestigation(investigationRequestId: string, bugReportBodyText: string): void {
+  startInvestigation(
+    investigationRequestId: string,
+    bugReportBodyText: string,
+    efwRequestId?: string,
+  ): void {
     getRecordStore()?.acceptInvestigation({
       id: investigationRequestId,
       messageLength: bugReportBodyText.length,
@@ -43,17 +47,21 @@ export class BugFixAgentService {
 
     logger.info(
       'investigation accepted',
-      investigationLogMeta(investigationRequestId, { messageLength: bugReportBodyText.length }),
+      investigationLogMeta(investigationRequestId, {
+        efwRequestId,
+        messageLength: bugReportBodyText.length,
+      }),
     )
 
-    void this.firstStepInvestigateIssue(investigationRequestId, bugReportBodyText).catch((error) => {
-      logger.error('investigation failed', investigationLogMeta(investigationRequestId, { error }))
+    void this.firstStepInvestigateIssue(investigationRequestId, bugReportBodyText, efwRequestId).catch((error) => {
+      logger.error('investigation failed', investigationLogMeta(investigationRequestId, { efwRequestId, error }))
     })
   }
 
   async firstStepInvestigateIssue(
     investigationRequestId: string,
     bugReportBodyText: string,
+    efwRequestId?: string,
   ): Promise<void> {
     // long running workflow, more than 10 seconds, and likely a few minutes to an hour
     const repoUrl = githubRepoUrl()
@@ -62,7 +70,7 @@ export class BugFixAgentService {
     }
 
     const logMeta = (meta?: Record<string, unknown>) =>
-      investigationLogMeta(investigationRequestId, meta)
+      investigationLogMeta(investigationRequestId, { efwRequestId, ...meta })
 
     logger.info(
       'investigation started',
@@ -73,6 +81,7 @@ export class BugFixAgentService {
       investigationRequestId,
       bugReportBodyText,
       repoUrl,
+      efwRequestId,
     )
 
     const investigation = parsed.ok ? parsed.data : undefined
@@ -125,6 +134,7 @@ export class BugFixAgentService {
     investigationRequestId: string,
     bugReportBodyText: string,
     repoUrl: string,
+    efwRequestId?: string,
   ): Promise<{
     parsed: ParsedInvestigationResponse
     agentId: string
@@ -132,7 +142,7 @@ export class BugFixAgentService {
     status: RunResult['status']
   }> {
     const logMeta = (meta?: Record<string, unknown>) =>
-      investigationLogMeta(investigationRequestId, meta)
+      investigationLogMeta(investigationRequestId, { efwRequestId, ...meta })
 
     const agentOpts = this.buildAgentOptions(repoUrl)
     const agent = await Agent.create(agentOpts)

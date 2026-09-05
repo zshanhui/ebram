@@ -151,6 +151,11 @@ fastify.post('/investigations', {
           maxLength: 5_000,
           description: 'Raw bug report text from the user.',
         },
+        requestId: {
+          type: 'string',
+          maxLength: 128,
+          description: 'Optional correlation id from the efw email worker.',
+        },
       },
     },
     response: {
@@ -170,12 +175,12 @@ fastify.post('/investigations', {
     },
   },
 }, async (request, reply) => {
-  const { message } = request.body as { message: string }
+  const { message, requestId } = request.body as { message: string; requestId?: string }
 
   request.investigationRequestId = generateInvestigationRequestId()
   const { investigationRequestId } = request
 
-  service.startInvestigation(investigationRequestId, message)
+  service.startInvestigation(investigationRequestId, message, requestId)
 
   return reply.code(202).send({ accepted: true, investigationRequestId })
 })

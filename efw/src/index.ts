@@ -9,7 +9,7 @@ import {
   sendResendEmail,
   type OrchestratorStatus,
 } from "./routing-helpers.js";
-import { SPAM_BLOCK_REPLY_BODY } from "./gate.js";
+import { SPAM_BLOCK_REPLY_BODY, DeepSpamFilter } from "./gate.js";
 
 interface Env {
   BUGFIXAGENT_URL: string;
@@ -22,6 +22,7 @@ interface Env {
   CONTACT_FORM_ADMIN_SUBJECT?: string;
   MAIL_FROM: string;
   DEV_TEST_MODE?: string;
+  AI?: Ai;
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MiB
@@ -72,6 +73,7 @@ async function handleFallbackForward(
   message: ForwardableEmailMessage,
   fallbackEmail: string,
   input: {
+    requestId?: string;
     investigationRequestId?: string;
     orchestratorStatus: OrchestratorStatus;
     sender: string;
@@ -88,22 +90,29 @@ async function handleFallbackForward(
   fwdHeaders.set("X-Bugfixagent-Status", input.orchestratorStatus);
   fwdHeaders.set("X-Bugfixagent-Sender", input.sender);
   fwdHeaders.set("X-Original-Recipient", input.recipient);
+  if (input.requestId) {
+    fwdHeaders.set("X-Bugfixagent-RequestId", input.requestId);
+  }
 
   try {
     await message.forward(fallbackEmail, fwdHeaders);
     console.log("forwarded to fallback", {
+      requestId: input.requestId,
       to: fallbackEmail,
       investigationRequestId: input.investigationRequestId,
     });
   } catch (err) {
-    console.error("fallback forward failed", err);
+    console.error("fallback forward failed", { requestId: input.requestId, err });
   }
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const requestId = crypto.randomUUID();
+
     // PROBE: temporary build marker to confirm a fresh deploy is live
-    console.log("efw fetch hit", {
+    console.log("efw started", {
+      requestId,
       buildTag: "probe-2026-09-05",
       method: request.method,
       path: new URL(request.url).pathname,
@@ -133,7 +142,7 @@ export default {
     }
 
     if (message.length < MIN_MESSAGE) {
-      console.log("contact form message too short", { email, length: message.length });
+      console.log("contact form message too short", { requestId, email, length: message.length });
       return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
     }
 
@@ -146,19 +155,23 @@ export default {
       return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
     }
 
-    const routeConfig = workerRouteConfigFromEnv(env);
+    const routeConfig = {
+      ...workerRouteConfigFromEnv(env),
+      deepSpamFilter: env.AI ? new DeepSpamFilter(env.AI) : undefined,
+    };
     const result = await routeInboundMessage({
-      message: contactFormInbound(email, message, contactFormAdminSubject(env)),
+      message: contactFormInbound(email, message, contactFormAdminSubject(env), requestId),
       routeConfig,
       onSpamBlocked: async () => {
-        console.warn("contact form blocked as spam", { email });
+        console.warn("contact form blocked as spam", { requestId, email });
         const spamReplySent = await sendResendEmail(routeConfig.resend, {
           to: email,
           subject: "Your message was not delivered",
           text: SPAM_BLOCK_REPLY_BODY,
+          requestId,
         });
         if (!spamReplySent) {
-          console.error("spam block reply failed");
+          console.error("spam block reply failed", { requestId });
         }
       },
     });
@@ -169,7 +182,10 @@ export default {
 
     return Response.redirect(env.CONTACT_SUCCESS_REDIRECT, 302);
   },
+
   async email(message, env: Env, _ctx) {
+    const requestId = crypto.randomUUID();
+
     // ── Size guard ──────────────────────────────────────────────
     if (message.rawSize > MAX_SIZE_BYTES) {
       message.setReject("message too large (max 5 MiB)");
@@ -181,6 +197,8 @@ export default {
     const subject = message.headers.get("subject") || "(no subject)";
 
     console.log("email received", {
+      requestId,
+      messageId: message.headers.get("message-id"),
       from: sender,
       to: recipient,
       subject,
@@ -193,16 +211,19 @@ export default {
       const parsed = await PostalMime.parse(message.raw);
       bodyText = parsed.text || parsed.html || "(empty body)";
     } catch (err) {
-      console.error("failed to parse email body", err);
+      console.error("failed to parse email body", { requestId, err });
       bodyText = "(could not parse email body)";
     }
 
-    const routeConfig = workerRouteConfigFromEnv(env);
+    const routeConfig = {
+      ...workerRouteConfigFromEnv(env),
+      deepSpamFilter: env.AI ? new DeepSpamFilter(env.AI) : undefined,
+    };
     const result = await routeInboundMessage({
-      message: inboundEmail(sender, recipient, subject, bodyText),
+      message: inboundEmail(sender, recipient, subject, bodyText, requestId),
       routeConfig,
       onSpamBlocked: async () => {
-        console.warn("email blocked as spam", { from: sender, to: recipient, subject });
+        console.warn("email blocked as spam", { requestId, from: sender, to: recipient, subject });
         await sendAutoReply(
           message,
           recipient,
@@ -210,12 +231,14 @@ export default {
           subject,
           SPAM_BLOCK_REPLY_BODY,
           "spam block reply sent",
+          { requestId },
         );
       },
     });
 
     if (result.outcome === "general" && !result.adminEmailSent) {
       console.error("failed to send general admin email for inbound message", {
+        requestId,
         sender,
         subject,
       });
@@ -245,11 +268,12 @@ export default {
           .filter(Boolean)
           .join("\n"),
         "auto-reply sent",
-        { investigationRequestId },
+        { requestId, investigationRequestId },
       );
     }
 
     await handleFallbackForward(message, env.FALLBACK_EMAIL, {
+      requestId,
       investigationRequestId,
       orchestratorStatus,
       sender,
