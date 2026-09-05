@@ -1,0 +1,12 @@
+# Config for the e2e probe worker only (see e2e/probe.ts).
+# Used by e2e/deep-spam.e2e.test.ts via `wrangler dev --config e2e/wrangler.e2e.toml`.
+name = "bugfixagent-e2e-probe"
+main = "probe.ts"
+compatibility_date = "2025-06-21"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+
+[observability]
+enabled = false

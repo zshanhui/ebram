@@ -13,6 +13,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src", "e2e"],
+  "exclude": ["src/**/*.test.ts", "e2e/**/*.test.ts"]
 }

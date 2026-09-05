@@ -87,7 +87,7 @@ export type AiRunner = {
 }
 
 type ChatCompletionResponse = {
-  choices?: { message?: { content?: string } }[]
+  choices?: { finish_reason?: string; message?: { content?: string } }[]
 }
 
 const MAX_DEEP_SPAM_INPUT_CHARS = 6_000
@@ -111,22 +111,29 @@ export class DeepSpamFilter {
             content: `<message>\n${text.slice(0, MAX_DEEP_SPAM_INPUT_CHARS)}\n</message>`,
           },
         ],
-        max_completion_tokens: 16, // hard cap so stray reasoning can't bill
+        // DeepSeek V4 Flash is a reasoning model: it emits its thinking in a
+        // separate `reasoning_content` field before the final `content` answer.
+        // A tiny cap here makes it burn all completion tokens on reasoning,
+        // returning an EMPTY content with finish_reason "length" (verified live).
+        // 256 is enough for the short chain-of-thought + the one-word answer.
+        max_completion_tokens: 256, // cap the (short) reasoning + 1-word answer
         temperature: 0,
         reasoning_effort: "low",
       })) as ChatCompletionResponse;
 
       const content = (result.choices?.[0]?.message?.content ?? "").trim().toUpperCase();
+      const finishReason = result.choices?.[0]?.finish_reason;
       const verdict =
         content === "SPAM" ? "SPAM" :
           content === "LEGIT" ? "LEGIT" : "UNKNOWN";
       console.log("deep spam filter gate", {
         requestId,
         verdict, // SPAM ⇒ blocked, LEGIT ⇒ passed, UNKNOWN ⇒ fail open
+        finishReason, // "length" ⇒ reasoning was truncated, content unreliable
         usage: (result as { usage?: unknown }).usage,
       });
       if (verdict === "UNKNOWN") {
-        console.warn("deep spam filter: unexpected model output", { requestId, content });
+        console.warn("deep spam filter: unexpected model output", { requestId, content, finishReason });
       }
       return verdict === "SPAM"; // UNKNOWN fails open
     } catch (err) {
