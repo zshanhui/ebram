@@ -278,6 +278,9 @@ export async function routeInboundMessage(input: {
       console.warn("deep spam llm filter blocked message", {
         requestId: message.requestId,
         replyTo: message.replyTo,
+        // full message on purpose: blocked content is the one case where we
+        // keep the raw text, so false-positive spam blocks can be reviewed.
+        fullText: message.preparedFullText,
       });
       await onSpamBlocked?.();
       return { outcome: "spam" };
