@@ -4,7 +4,7 @@
     "module": "ES2022",
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "node"],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -13,6 +13,5 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src", "e2e"],
-  "exclude": ["src/**/*.test.ts", "e2e/**/*.test.ts"]
+  "include": ["src", "e2e"]
 }

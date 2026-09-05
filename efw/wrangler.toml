@@ -13,6 +13,14 @@ routes = [
 # After deploying, bind this worker to a catch-all address in the
 # Cloudflare Dashboard: Email → Email Routing → Routing Rules.
 
+# Bundle ebram.config.yaml (repo root) into the worker at build time.
+# The second rule preserves wrangler's default text handling (its warning
+# notes custom rules replace the built-in *.txt/*.html/*.sql rules).
+rules = [
+  { type = "Text", globs = ["**/ebram.config.yaml"], fallthrough = true },
+  { type = "Text", globs = ["**/*.txt", "**/*.html", "**/*.sql"], fallthrough = true },
+]
+
 # ── Environment variables ────────────────────────────────────────
 [vars]
 BUGFIXAGENT_URL = "https://ebram-production.up.railway.app"

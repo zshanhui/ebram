@@ -6,6 +6,9 @@ export const SPAM_WORDS = ['seo', 'analysis', 'google', 'bing', 'phone call', 'a
   'promo code', 'jackpot', 'telegra.ph'
 ] as const
 export const SPAM_BLOCK_MIN_MATCHES = 2
+// Runtime-tunable config (ebram.config.yaml) falls back to these defaults
+export const DEFAULT_SPAM_WORDS = SPAM_WORDS
+export const DEFAULT_SPAM_BLOCK_MIN_MATCHES = SPAM_BLOCK_MIN_MATCHES
 export const MIN_REPORT_WORDS = 15
 
 export type InvestigationSkipReason = 'missing_keywords' | 'too_short'

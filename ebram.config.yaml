@@ -1,0 +1,39 @@
+# ebram (bugfixagent) configuration.
+#
+# Consumed by the bugfixagent email worker (efw) at BUILD time: wrangler
+# bundles this file into the worker (see `rules` in efw/wrangler.toml and
+# efw/src/spam-config.ts). Editing this file therefore requires the normal
+# commit → PR → CI → deploy flow — there is no runtime fetch, so config
+# changes only take effect with the next worker deployment.
+#
+# This repo is private, so the values here are not publicly readable.
+
+# Spam gate for inbound bug reports (light/heuristic filter in efw/src/gate.ts).
+# The heuristic blocks a message when it matches >= minMatches distinct words.
+# Multi-word phrases use word-boundary matching, case-insensitive.
+# A broken config is caught by unit tests at PR time; at runtime the worker
+# falls back to its built-in defaults rather than blocking the inbox.
+spam:
+  # Master switch for the LLM-based deep spam filter (efw/src/gate.ts).
+  # The heuristic word filter below ALWAYS runs; the deep filter only runs
+  # when this is true. Missing or non-boolean values count as false.
+  enableDeepSpamGate: true
+  minMatches: 2
+  words:
+    - seo
+    - analysis
+    - google
+    - bing
+    - phone call
+    - are incomplete
+    - keywords
+    - attract more clients
+    - online visibility
+    - improve your website
+    - steps are incomplete
+    - Mark Colins
+    - business and services
+    # gambling / promo-code spam (telegra.ph jackpot pitches)
+    - promo code
+    - jackpot
+    - telegra.ph

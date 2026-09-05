@@ -4,6 +4,7 @@ import {
   shouldBlockAsSpam,
   shouldInvestigateReport,
 } from "./gate.js";
+import { SPAM_GATE_CONFIG } from "./bundled-config.js";
 
 type ResendEnv = {
   RESEND_API_KEY: string;
@@ -259,17 +260,24 @@ export async function routeInboundMessage(input: {
 }): Promise<RouteInboundResult> {
   const { message, routeConfig, onSpamBlocked } = input;
 
-  const heuristicBlocked = shouldBlockAsSpam(message.preparedFullText);
+  const spamGateConfig = SPAM_GATE_CONFIG;
+  const heuristicBlocked = shouldBlockAsSpam(
+    message.preparedFullText,
+    spamGateConfig.words,
+    spamGateConfig.minMatches,
+  );
   console.log("heuristic spam gate", {
     requestId: message.requestId,
     result: heuristicBlocked ? "BLOCKED" : "passed",
+    wordsLoaded: spamGateConfig.words.length,
+    deepSpamGate: spamGateConfig.enableDeepSpamGate ? "enabled" : "disabled",
   });
   if (heuristicBlocked) {
     await onSpamBlocked?.();
     return { outcome: "spam" };
   }
 
-  if (routeConfig.deepSpamFilter) {
+  if (spamGateConfig.enableDeepSpamGate && routeConfig.deepSpamFilter) {
     const deepSpam = await routeConfig.deepSpamFilter.detectSpam(
       message.preparedFullText,
       message.requestId,
