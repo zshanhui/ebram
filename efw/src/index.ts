@@ -112,7 +112,7 @@ export default {
     // PROBE: temporary build marker to confirm a fresh deploy is live
     console.log("efw started", {
       requestId,
-      buildTag: "probe-2026-09-05",
+      buildTag: "probe-2026-09-06-1810",
       method: request.method,
       path: new URL(request.url).pathname,
     });
