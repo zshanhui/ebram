@@ -2,7 +2,7 @@
   "name": "email-bug-report-automation",
   "version": "1.0.0",
   "description": "email based bug report/fix automation machine",
-  "author": "li, shanhui <shanhui@proton.me>",
+  "author": "zshanhui <shanhui.dev@proton.me>",
   "main": "src/main.ts",
   "scripts": {
     "dev": "tsx watch src/main.ts",
@@ -24,7 +24,7 @@
     "zod": "3.25.50"
   },
   "keywords": [],
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.6.0",
   "devDependencies": {

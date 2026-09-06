@@ -1,0 +1,83 @@
+# CI for the email worker (efw).
+#
+# - PRs / pushes: typecheck + unit tests (no Cloudflare access needed).
+# - Merges to main: deploy the worker with wrangler — this is the ONLY
+#   sanctioned deploy path (see AGENTS.md: never `railway up`/direct deploy).
+#
+# ⚠️ DISABLED FOR NOW: triggers below are reduced to workflow_dispatch so
+# nothing runs automatically. To re-enable, restore the push/pull_request
+# blocks (kept commented at the bottom of this file).
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  — token with "Workers Scripts: Edit" permission
+#                           for account 488bcdf777a6bc01975ab5c35f9f0099
+#   CLOUDFLARE_ACCOUNT_ID — same account id
+# Wrangler picks both up from the environment automatically.
+
+name: efw-ci
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "efw/**"
+  #     - "ebram.config.yaml"
+  #     - ".github/workflows/efw-ci.yml"
+  # pull_request:
+  #   paths:
+  #     - "efw/**"
+  #     - "ebram.config.yaml"
+  #     - ".github/workflows/efw-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: efw-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: efw
+
+jobs:
+  test:
+    name: typecheck + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: efw/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    name: deploy worker (production)
+    needs: test
+    # only real merges to main, never PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: efw-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: efw/package-lock.json
+      - run: npm ci
+      - name: verify bundled spam config parses
+        run: npm test -- src/spam-config.test.ts
+      - name: deploy
+        # deploys efw/wrangler.toml (kept out of git; maintain locally)
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
