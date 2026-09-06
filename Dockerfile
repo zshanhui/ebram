@@ -35,6 +35,8 @@ ENV NODE_ENV=production \
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+# Runtime config read by dist/config.js at startup (fail fast if missing)
+COPY ebram.config.yaml ./
 
 RUN mkdir -p /app/data && chown -R app:app /app
 

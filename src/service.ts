@@ -66,7 +66,7 @@ export class BugFixAgentService {
     // long running workflow, more than 10 seconds, and likely a few minutes to an hour
     const repoUrl = githubRepoUrl()
     if (!repoUrl) {
-      throw new Error('missing or invalid GITHUB_REPO')
+      throw new Error('missing or invalid orchestrator.bug_triage.github_repo in ebram.config.yaml')
     }
 
     const logMeta = (meta?: Record<string, unknown>) =>
@@ -150,7 +150,7 @@ export class BugFixAgentService {
     try {
       logger.info(
         'cursor agent created',
-        logMeta({ agentId: agent.agentId, model: 'composer-2.5', mode: 'agent' }),
+        logMeta({ agentId: agent.agentId, model: config.agentModel, mode: 'agent' }),
       )
 
       const securityNonce = generateSecurityNonce()
@@ -219,7 +219,8 @@ export class BugFixAgentService {
   private buildAgentOptions(repoUrl: string): AgentOptions {
     return {
       apiKey: config.cursorApiKey,
-      model: { id: 'composer-2.5' },
+      // agent_model from ebram.config.yaml (orchestrator.bug_triage)
+      model: { id: config.agentModel },
       mode: 'agent',
       cloud: {
         repos: [{ url: repoUrl, startingRef: 'main' }],

@@ -1,10 +1,16 @@
 # ebram (bugfixagent) configuration.
 #
-# Consumed by the bugfixagent email worker (efw) at BUILD time: wrangler
-# bundles this file into the worker (see `rules` in efw/wrangler.toml and
-# efw/src/spam-config.ts). Editing this file therefore requires the normal
-# commit → PR → CI → deploy flow — there is no runtime fetch, so config
-# changes only take effect with the next worker deployment.
+# Consumed in two ways:
+#  - spam + general sections: by the bugfixagent email worker (efw) at BUILD
+#    time — wrangler bundles this file into the worker (see `rules` in
+#    efw/wrangler.toml and efw/src/spam-config.ts / general-config.ts), so
+#    changes take effect on the next worker deployment.
+#  - orchestrator.bug_triage section: by the orchestrator service at RUNTIME
+#    (src/ebram-config.ts, read from disk next to the app at startup —
+#    fail fast). The Dockerfile copies this file into the runtime image.
+#
+# Either way there is no runtime fetch; config changes require the normal
+# commit → PR → CI → deploy flow.
 #
 # This repo is private, so the values here are not publicly readable.
 
@@ -37,3 +43,19 @@ spam:
     - promo code
     - jackpot
     - telegra.ph
+
+# Admin inbox for general (non-investigation) inbound mail — the contact
+# form and emails that pass the spam gates but are not bug reports.
+# Replaces the old CONTACT_TO_EMAIL env var (removed). Missing or invalid
+# here means general admin mail is disabled, so keep a valid address.
+general:
+  contact_email: shanhui.dev@proton.me
+
+orchestrator:
+  bug_triage:
+    agent_backend: cursor
+    agent_model: composer-2.5
+    github_repo: zshanhui/levelchinesenews-mobile-apps # change to your own repo
+    # Persist investigation runs to the SQLite record store (default: true)
+    store_records: true
+    dev_notification_email: shanhui.dev@proton.me # change to your own dev email

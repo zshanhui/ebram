@@ -36,8 +36,15 @@ Push the repo and create a new Railway service from it (Railway will pick up rai
 
 Set these environment variables in Railway (from .env.example):
 
-EBRAM_API_ACCESS_KEY, CURSOR_API_KEY, GITHUB_REPO, GITHUB_TOKEN
-DEV_NOTIFICATION_EMAIL, RESEND_API_KEY, MAIL_FROM
+EBRAM_API_ACCESS_KEY, CURSOR_API_KEY, GITHUB_TOKEN,
+RESEND_API_KEY, MAIL_FROM
+
+Agent harness/model, target repo, record store toggle and the dev
+notification email are configured in ebram.config.yaml
+(orchestrator.bug_triage: agent_backend, agent_model, github_repo,
+store_records, dev_notification_email), which is read from disk at service
+startup — no env vars needed for those.
+
 Railway sets PORT automatically — no need to configure it
 Optional but recommended: attach a Railway volume mounted at /app/data so SQLite investigation logs survive redeploys. The container already sets RECORD_STORE_SQLITE_PATH=/app/data/bugfixagent.db.
 

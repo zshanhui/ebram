@@ -3,8 +3,6 @@ import { test } from 'node:test'
 
 process.env.EBRAM_API_ACCESS_KEY ??= 'test-key'
 process.env.CURSOR_API_KEY ??= 'test-cursor-key'
-process.env.DEV_NOTIFICATION_EMAIL ??= 'dev@example.com'
-process.env.GITHUB_REPO ??= 'owner/repo'
 process.env.GITHUB_TOKEN ??= 'test-github-token'
 process.env.RESEND_API_KEY ??= 'test-resend-key'
 process.env.MAIL_FROM ??= 'test@example.com'

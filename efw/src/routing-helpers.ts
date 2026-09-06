@@ -9,7 +9,6 @@ import { SPAM_GATE_CONFIG } from "./bundled-config.js";
 type ResendEnv = {
   RESEND_API_KEY: string;
   MAIL_FROM: string;
-  CONTACT_TO_EMAIL: string;
 };
 
 export type ResendMailConfig = {
@@ -33,11 +32,10 @@ type SendGeneralAdminEmailInput = {
   requestId?: string;
 };
 
-export function resendConfigFromEnv(env: ResendEnv): ResendMailConfig {
+export function resendConfigFromEnv(env: ResendEnv): Omit<ResendMailConfig, "adminToEmail"> {
   return {
     resendApiKey: env.RESEND_API_KEY,
     mailFrom: env.MAIL_FROM,
-    adminToEmail: env.CONTACT_TO_EMAIL,
   };
 }
 
@@ -79,6 +77,13 @@ async function sendGeneralAdminEmail(
   config: ResendMailConfig,
   input: SendGeneralAdminEmailInput,
 ): Promise<boolean> {
+  if (!config.adminToEmail) {
+    console.error("no admin inbox configured — skipping general admin email", {
+      requestId: input.requestId,
+      hint: "set general.contact_email in ebram.config.yaml",
+    });
+    return false;
+  }
   return sendResendEmail(config, {
     to: config.adminToEmail,
     subject: input.subject,

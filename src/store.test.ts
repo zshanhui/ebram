@@ -4,12 +4,18 @@ import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test } from 'node:test'
 
-import {
-  normalizeEvent,
-  openRecordStore,
-  sanitizeContents,
-  shouldPersistLog,
-} from './store.js'
+// config.js (imported via store.js) exits if required env vars are missing,
+// so stub them before the dynamic import below (static imports are hoisted
+// and would evaluate config.js first).
+process.env.EBRAM_API_ACCESS_KEY ??= 'test-key'
+process.env.CURSOR_API_KEY ??= 'test-cursor-key'
+process.env.GITHUB_TOKEN ??= 'test-github-token'
+process.env.RESEND_API_KEY ??= 'test-resend-key'
+process.env.MAIL_FROM ??= 'test@example.com'
+
+const { normalizeEvent, openRecordStore, sanitizeContents, shouldPersistLog } = await import(
+  './store.js'
+)
 
 function tempDbPath(): string {
   const dir = mkdtempSync(join(tmpdir(), 'bugfixagent-store-'))

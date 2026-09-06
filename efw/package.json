@@ -8,7 +8,7 @@
     "depl": "wrangler deploy",
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/gate.test.ts src/spam-config.test.ts",
+    "test": "tsx --test src/gate.test.ts src/spam-config.test.ts src/general-config.test.ts",
     "test:e2e": "tsx --test e2e/deep-spam.e2e.test.ts"
   },
   "dependencies": {

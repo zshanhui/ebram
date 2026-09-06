@@ -26,7 +26,8 @@ BUGFIXAGENT_URL = "https://your.ebram.orchestrator.url"
 FALLBACK_EMAIL = ""
 CONTACT_SUCCESS_REDIRECT = "https://ebramforms.com/contact?success=1"
 CONTACT_ERROR_REDIRECT = "https://ebramforms.app/contact?error=1"
-CONTACT_TO_EMAIL = "contact@ebramforms.com"
+# Admin inbox for general (non-investigation) inbound mail lives in
+# ebram.config.yaml (general.contact_email) — no env var needed.
 CONTACT_FORM_ADMIN_SUBJECT = "EbramForms contact form"
 MAIL_FROM = "customer@ebramforms.com"
 # Set to "1", "on", or "true" to log investigations locally without calling the orchestrator

@@ -143,7 +143,7 @@ export async function openGithubIssue(
 
   if (!githubRepo) {
     logger.error(
-      'openGithubIssue skipped: missing or invalid GITHUB_REPO',
+      'openGithubIssue skipped: missing or invalid orchestrator.bug_triage.github_repo in ebram.config.yaml',
       investigationLogMeta(investigationRequestId),
     )
     return githubIssueFailure('missing_github_repo')
@@ -252,7 +252,7 @@ export async function sendDevNotificationEmail(input: DevNotificationEmailInput)
 
   if (!apiKey || !to || !from) {
     logger.error(
-      'sendDevNotificationEmail skipped: missing RESEND_API_KEY, DEV_NOTIFICATION_EMAIL, or MAIL_FROM',
+      'sendDevNotificationEmail skipped: missing RESEND_API_KEY, dev_notification_email, or MAIL_FROM',
       investigationLogMeta(investigationRequestId),
     )
     return

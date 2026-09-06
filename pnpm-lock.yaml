@@ -32,6 +32,9 @@ importers:
       fastify:
         specifier: ^5.8.5
         version: 5.8.5
+      js-yaml:
+        specifier: ^5.4.1
+        version: 5.4.1
       zod:
         specifier: 3.25.50
         version: 3.25.50
@@ -39,6 +42,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^22.19.21
         version: 22.19.21
@@ -51,6 +57,9 @@ importers:
 
   efw:
     dependencies:
+      js-yaml:
+        specifier: ^5.4.1
+        version: 5.4.1
       mimetext:
         specifier: ^3.0.3
         version: 3.0.28
@@ -61,6 +70,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20250621.0
         version: 4.20260620.1
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
@@ -672,6 +684,9 @@ packages:
   '@types/better-sqlite3@7.6.13':
     resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
 
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
+
   '@types/node@22.19.21':
     resolution: {integrity: sha512-VMeFBSCKQKmm2swI2kW51SFusDqekC6q9trBCvJ/JliDchFSuoYYKN7yVNjPthP1HKZcx3U1gI/wTcEBjEFKTA==}
 
@@ -730,6 +745,9 @@ packages:
     resolution: {integrity: sha512-QZW4EDmGwlYur0Yyf/b2uGucHQMa8aFUP7eu9ddR73vvhFyt4V0Vl3QHPcTNJ8l6qYOBdxgXdnBXQrHilfRQBg==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This package is no longer supported.
+
+  argparse@2.0.1:
+    resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
   atomic-sleep@1.0.0:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
@@ -991,6 +1009,10 @@ packages:
 
   js-base64@3.7.8:
     resolution: {integrity: sha512-hNngCeKxIUQiEUN3GPJOkz4wF/YvdUdbNL9hsBcMQTkKzboD7T/q3OYOuuPZLUE6dBxSGpwhk5mwuDud7JVAow==}
+
+  js-yaml@5.4.1:
+    resolution: {integrity: sha512-28R/k+NAjeuf7+CKlTxWZVExJGwVVLwY06DgEnOMz2gEpfNkDcD7QvyiVPT0xy0XXhU8vHsd4Ot42OOPdJG7dQ==}
+    hasBin: true
 
   json-schema-ref-resolver@3.0.0:
     resolution: {integrity: sha512-hOrZIVL5jyYFjzk7+y7n5JDzGlU8rfWDuYyHwGa2WA8/pcmMHezp2xsVwxrebD/Q9t8Nc5DboieySDpCp4WG4A==}
@@ -1944,6 +1966,8 @@ snapshots:
     dependencies:
       '@types/node': 22.19.21
 
+  '@types/js-yaml@4.0.9': {}
+
   '@types/node@22.19.21':
     dependencies:
       undici-types: 6.21.0
@@ -2008,6 +2032,8 @@ snapshots:
       delegates: 1.0.0
       readable-stream: 3.6.2
     optional: true
+
+  argparse@2.0.1: {}
 
   atomic-sleep@1.0.0: {}
 
@@ -2323,6 +2349,10 @@ snapshots:
     optional: true
 
   js-base64@3.7.8: {}
+
+  js-yaml@5.4.1:
+    dependencies:
+      argparse: 2.0.1
 
   json-schema-ref-resolver@3.0.0:
     dependencies:

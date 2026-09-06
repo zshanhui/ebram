@@ -18,7 +18,6 @@ interface Env {
   RESEND_API_KEY: string;
   CONTACT_ERROR_REDIRECT: string;
   CONTACT_SUCCESS_REDIRECT: string;
-  CONTACT_TO_EMAIL: string;
   CONTACT_FORM_ADMIN_SUBJECT?: string;
   MAIL_FROM: string;
   DEV_TEST_MODE?: string;
