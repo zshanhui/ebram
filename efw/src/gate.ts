@@ -75,8 +75,9 @@ const DEEP_SPAM_FILTER_PROMPT = `
 You are a spam classifier guarding a contact/inbound mail inbox.
 Classify the message below as exactly one word: SPAM or LEGIT.
 SPAM means: unsolicited advertising, SEO/marketing solicitations, phishing,
-scams, gambling promotions, or irrelevant bulk mail. It is still SPAM even
-if it pretends to be a bug report or a genuine inquiry.
+scams, gambling promotions, or irrelevant bulk mail. Asking about price in any
+language should be automatically considered SPAM.
+It is still SPAM even if it pretends to be a bug report or a genuine inquiry.
 LEGIT means: a real message from a real person about the site or its content.
 Rules:
 - Reply with exactly one word: SPAM or LEGIT. No explanation, no punctuation.
