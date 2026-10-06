@@ -1,6 +1,7 @@
 import { EmailMessage } from "cloudflare:email";
 import { createMimeMessage } from "mimetext";
 import PostalMime from "postal-mime";
+import { ENABLE_FORM_TOKEN } from "./bundled-config.js";
 import { contactFormAdminSubject, workerRouteConfigFromEnv } from "./env.js";
 import {
   contactFormInbound,
@@ -10,6 +11,12 @@ import {
   type OrchestratorStatus,
 } from "./routing-helpers.js";
 import { SPAM_BLOCK_REPLY_BODY, DeepSpamFilter, countWords } from "./gate.js";
+import {
+  contactFormToken,
+  contactTokenMatches,
+  isAllowedContactCaller,
+  originsFromRedirects,
+} from "./contact-guard.js";
 
 interface Env {
   BUGFIXAGENT_URL: string;
@@ -128,6 +135,27 @@ export default {
 
     const body = await request.text();
     const params = new URLSearchParams(body);
+
+    const allowedOrigins = originsFromRedirects([
+      env.CONTACT_SUCCESS_REDIRECT,
+      env.CONTACT_ERROR_REDIRECT,
+    ]);
+    if (!isAllowedContactCaller(request.headers.get("origin"), request.headers.get("referer"), allowedOrigins)) {
+      console.warn("contact form rejected origin", {
+        requestId,
+        origin: request.headers.get("origin"),
+      });
+      return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+    }
+
+    if (ENABLE_FORM_TOKEN) {
+      const expectedToken = await contactFormToken(request.url, env.MAIL_FROM);
+      if (!contactTokenMatches(params.get("contact_token") || "", expectedToken)) {
+        console.warn("contact form rejected token", { requestId });
+        return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
+      }
+    }
+
     const honeypot = (params.get('website') || '').trim();
     if (honeypot.length > 0) {
       return Response.redirect(env.CONTACT_SUCCESS_REDIRECT, 302);

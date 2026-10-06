@@ -7,6 +7,7 @@
 import configYaml from "../../ebram.config.yaml";
 import { parseSpamConfig, type SpamGateConfig } from "./spam-config.js";
 import { parseGeneralConfig, type GeneralConfig } from "./general-config.js";
+import { parseEnableFormToken } from "./contact-guard.js";
 import {
   DEFAULT_SPAM_BLOCK_MIN_MATCHES,
   DEFAULT_SPAM_WORDS,
@@ -23,3 +24,5 @@ export const SPAM_GATE_CONFIG: SpamGateConfig = parseSpamConfig(configYaml) ?? {
 export const GENERAL_CONFIG: GeneralConfig = parseGeneralConfig(configYaml) ?? {
   contactEmail: "",
 };
+
+export const ENABLE_FORM_TOKEN = parseEnableFormToken(configYaml);

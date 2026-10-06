@@ -59,3 +59,7 @@ orchestrator:
     # Persist investigation runs to the SQLite record store (default: true)
     store_records: true
     dev_notification_email: shanhui.dev@proton.me # change to your own dev email
+
+# Hidden contact-form token check in the email worker. Runs only when true.
+# Missing or non-boolean values count as false.
+enable_form_token: true
