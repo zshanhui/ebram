@@ -9,7 +9,7 @@ import {
   sendResendEmail,
   type OrchestratorStatus,
 } from "./routing-helpers.js";
-import { SPAM_BLOCK_REPLY_BODY, DeepSpamFilter } from "./gate.js";
+import { SPAM_BLOCK_REPLY_BODY, DeepSpamFilter, countWords } from "./gate.js";
 
 interface Env {
   BUGFIXAGENT_URL: string;
@@ -61,8 +61,8 @@ async function sendAutoReply(
 }
 
 const MAX_MESSAGE = 12_000;
-// Minimum length for contact-form messages — rejects junk like "hi", "test", bare URLs
-const MIN_MESSAGE = 20;
+// Minimum word count for contact-form messages — rejects junk like "hi", "test", bare URLs
+const MIN_MESSAGE_WORDS = 20;
 
 function badRequest(msg: string) {
   return new Response(msg, { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } });
@@ -140,8 +140,9 @@ export default {
       return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
     }
 
-    if (message.length < MIN_MESSAGE) {
-      console.log("contact form message too short", { requestId, email, length: message.length });
+    const wordCount = countWords(message);
+    if (wordCount < MIN_MESSAGE_WORDS) {
+      console.log("contact form message too short", { requestId, email, words: wordCount });
       return Response.redirect(env.CONTACT_ERROR_REDIRECT, 302);
     }
 
